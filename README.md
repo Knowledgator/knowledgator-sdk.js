@@ -1,0 +1,1 @@
+# Knowledgator TypeScript SDK
