@@ -6,6 +6,7 @@ import tsPlugin from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
 import importPlugin from 'eslint-plugin-import';
 import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
+import globals from 'globals';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -22,14 +23,20 @@ export default [
         sourceType: 'module',
       },
       globals: {
-        console: 'readonly',
-        process: 'readonly',
-        __dirname: 'readonly',
+        ...globals.node,
+        RequestInit: 'readonly',
       },
     },
     plugins: {
       '@typescript-eslint': tsPlugin,
       import: importPlugin,
+    },
+    settings: {
+      'import/resolver': {
+        typescript: {
+          project: './tsconfig.base.json',
+        },
+      },
     },
     rules: {
       ...js.configs.recommended.rules,
