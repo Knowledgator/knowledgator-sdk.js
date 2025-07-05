@@ -1,9 +1,5 @@
 import { calculateBackoff, shouldRetry } from '../config/config';
-import {
-  ABSOLUTE_MAX_RETRIES,
-  ABSOLUTE_MAX_TIMEOUT_MS,
-  DEFAULT_RETRY_POLICY,
-} from '../config/defaults';
+import { ABSOLUTE_MAX_RETRIES, ABSOLUTE_MAX_TIMEOUT_MS } from '../config/defaults';
 import {
   AbortError,
   HttpError,
@@ -14,11 +10,11 @@ import {
 } from '../errors';
 import { buildUrl, convertHeaders, getError, isAbortError, mergeHeaders, sleep } from '../utils';
 
-import type { Config, Options } from './types';
+import type { HttpConfig, HttpOptions } from './types';
 
 const makeRequest =
-  (config: Config) =>
-  async (method: string, path?: string, options: Options = {}): Promise<Response> => {
+  (config: HttpConfig) =>
+  async (method: string, path?: string, options: HttpOptions = {}): Promise<Response> => {
     const {
       params,
       timeout,
@@ -31,14 +27,8 @@ const makeRequest =
 
     const url = buildUrl(config.baseUrl ?? '', path, params, omit);
 
-    const maxTries = Math.min(
-      retries ?? config.retryPolicy?.maxTries ?? DEFAULT_RETRY_POLICY.maxTries,
-      config.maxAbsoluteRetries ?? ABSOLUTE_MAX_RETRIES,
-    );
-    const requestTimeout = Math.min(
-      timeout ?? config.timeout ?? ABSOLUTE_MAX_TIMEOUT_MS,
-      ABSOLUTE_MAX_TIMEOUT_MS,
-    );
+    const maxTries = Math.min(retries ?? config.retryPolicy?.maxTries ?? 0, ABSOLUTE_MAX_RETRIES);
+    const requestTimeout = Math.min(timeout ?? config.timeout ?? 0, ABSOLUTE_MAX_TIMEOUT_MS);
 
     let attempt = 0;
     let lastResponse: Response | null = null;
@@ -160,17 +150,18 @@ const makeRequest =
     throw new UnexpectedError();
   };
 
-export const createHttpClient = (config: Config) => {
+export const createHttpClient = (config: HttpConfig) => {
   const request = makeRequest(config);
 
   return {
     request,
-    get: (path?: string, options?: Options) => request('GET', path, options),
-    post: (path?: string, options?: Options) => request('POST', path, options),
-    put: (path?: string, options?: Options) => request('PUT', path, options),
-    delete: (path?: string, options?: Options) => request('DELETE', path, options),
-    patch: (path?: string, options?: Options) => request('PATCH', path, options),
-    head: (path?: string, options?: Omit<Options, 'body'>) => request('HEAD', path, options),
-    options: (path?: string, options?: Omit<Options, 'body'>) => request('OPTIONS', path, options),
+    get: (path?: string, options?: HttpOptions) => request('GET', path, options),
+    post: (path?: string, options?: HttpOptions) => request('POST', path, options),
+    put: (path?: string, options?: HttpOptions) => request('PUT', path, options),
+    delete: (path?: string, options?: HttpOptions) => request('DELETE', path, options),
+    patch: (path?: string, options?: HttpOptions) => request('PATCH', path, options),
+    head: (path?: string, options?: Omit<HttpOptions, 'body'>) => request('HEAD', path, options),
+    options: (path?: string, options?: Omit<HttpOptions, 'body'>) =>
+      request('OPTIONS', path, options),
   };
 };

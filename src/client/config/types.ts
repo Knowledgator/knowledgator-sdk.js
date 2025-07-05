@@ -4,4 +4,6 @@ export interface RetryPolicy {
   readonly maxDelay?: number;
   readonly retryableStatuses?: readonly number[];
   readonly jitter?: boolean;
+  readonly jitterMin?: number;
+  readonly jitterMax?: number;
 }

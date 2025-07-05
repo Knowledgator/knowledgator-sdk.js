@@ -102,12 +102,3 @@ export class UnexpectedError extends Error {
     this.name = 'UnexpectedError';
   }
 }
-
-export class EndpointNotConfiguredError extends Error {
-  constructor(endpointName: string) {
-    super(
-      `${endpointName} endpoint not configured. Please provide a ${endpointName} endpoint in the SDK configuration.`,
-    );
-    this.name = 'EndpointNotConfiguredError';
-  }
-}

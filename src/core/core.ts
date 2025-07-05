@@ -1,4 +1,3 @@
-import { EndpointNotConfiguredError } from '../client/errors';
 import { createHttpClient } from '../client/http';
 import {
   validateComprehendRequest,
@@ -28,15 +27,39 @@ import {
   getRapidApiHeaders,
   RAPID_API_SERVERS,
 } from './defaults';
-import type { EndpointConfig, KnowledgatorConfig, ServerConfig } from './types';
+import type { EndpointConfig, Config, ServerConfig } from './types';
 
 const jsonRequest = async <TInput, TOutput>(
-  config: KnowledgatorConfig,
-  endpoint: string,
+  config: Config,
+  serviceKey: keyof ServerConfig,
+  endpointKey: keyof EndpointConfig,
   data: TInput,
   validator: (data: unknown) => TOutput,
 ): Promise<TOutput> => {
-  const httpClient = createHttpClient(config);
+  let baseUrl: string | undefined = DEFAULT_SERVERS[serviceKey];
+  let endpoint: string | undefined = DEFAULT_ENDPOINTS[endpointKey];
+  let baseHeaders: Record<string, string> | undefined = getDefaultHeaders(config.apiKey);
+
+  if (config.provider === 'rapidapi') {
+    baseUrl = RAPID_API_SERVERS[serviceKey];
+    endpoint = DEFAULT_ENDPOINTS[endpointKey];
+    baseHeaders = getRapidApiHeaders(baseUrl.replace('https://', ''), config.apiKey);
+  }
+
+  if (config.provider === 'custom') {
+    baseUrl = config.servers[serviceKey];
+    endpoint = config.endpoints[endpointKey];
+    baseHeaders = config.baseHeaders;
+  }
+
+  const httpClient = createHttpClient({
+    baseUrl,
+    baseHeaders,
+    timeout: config.timeout,
+    retryPolicy: config.retryPolicy,
+    requestInterceptor: config.requestInterceptor,
+    responseInterceptor: config.responseInterceptor,
+  });
 
   const response = await httpClient.post(endpoint, {
     body: JSON.stringify(data),
@@ -46,122 +69,64 @@ const jsonRequest = async <TInput, TOutput>(
   return config.validateResponses ? validator(output) : (output as TOutput);
 };
 
-const createComprehendApi = (config: KnowledgatorConfig) => {
-  const endpoint = config.endpoints?.comprehend;
-
-  return {
-    it: async (request: ComprehendRequest): Promise<ComprehendResults> => {
-      if (!endpoint) {
-        throw new EndpointNotConfiguredError('Comprehend');
-      }
-
-      return jsonRequest(
-        config,
-        endpoint,
-        validateComprehendRequest(request),
-        validateComprehendResults,
-      );
-    },
-  };
-};
-
-const createExtractApi = (config: KnowledgatorConfig) => {
-  const endpoints: Partial<
-    Pick<EndpointConfig, 'extract' | 'extractRelations' | 'extractSummary'>
-  > = {
-    extract: config.endpoints?.extract,
-    extractRelations: config.endpoints?.extractRelations,
-    extractSummary: config.endpoints?.extractSummary,
-  };
-
-  return {
-    entities: async (request: ExtractBaseRequest): Promise<ExtractBaseResults> => {
-      if (!endpoints.extract) {
-        throw new EndpointNotConfiguredError('Extract');
-      }
-
-      return jsonRequest(
-        config,
-        endpoints.extract,
-        validateExtractBaseRequest(request),
-        validateExtractBaseResults,
-      );
-    },
-    relations: async (request: ExtractRelationsRequest): Promise<ExtractRelationsResults> => {
-      if (!endpoints.extractRelations) {
-        throw new EndpointNotConfiguredError('Extract Relations');
-      }
-
-      return jsonRequest(
-        config,
-        endpoints.extractRelations,
-        validateExtractRelationsRequest(request),
-        validateExtractRelationsResults,
-      );
-    },
-    summary: async (request: ExtractSummaryRequest): Promise<ExtractSummaryResults> => {
-      if (!endpoints.extractSummary) {
-        throw new EndpointNotConfiguredError('Extract Summary');
-      }
-
-      return jsonRequest(
-        config,
-        endpoints.extractSummary,
-        validateExtractSummaryRequest(request),
-        validateExtractSummaryResults,
-      );
-    },
-  };
-};
-
-export const getBaseConfig = (config?: KnowledgatorConfig): KnowledgatorConfig => ({
-  validateResponses: config?.validateResponses ?? true,
-  timeout: config?.timeout,
-  retryPolicy: config?.retryPolicy,
-  maxAbsoluteRetries: config?.maxAbsoluteRetries,
-  requestInterceptor: config?.requestInterceptor,
-  responseInterceptor: config?.responseInterceptor,
-  apiKey: config?.apiKey,
+const createComprehendApi = (config: Config) => ({
+  it: async (request: ComprehendRequest): Promise<ComprehendResults> =>
+    jsonRequest(
+      config,
+      'comprehend',
+      'comprehend',
+      validateComprehendRequest(request),
+      validateComprehendResults,
+    ),
 });
 
-export const createKnowledgatorConfig = (
-  service: keyof ServerConfig,
-  config?: KnowledgatorConfig,
-): KnowledgatorConfig => ({
-  baseUrl: config?.baseUrl || DEFAULT_SERVERS[service],
-  baseHeaders: {
-    ...getDefaultHeaders(config?.apiKey),
-    ...config?.baseHeaders,
+const createExtractApi = (config: Config) => ({
+  entities: async (request: ExtractBaseRequest): Promise<ExtractBaseResults> =>
+    jsonRequest(
+      config,
+      'extract',
+      'extract',
+      validateExtractBaseRequest(request),
+      validateExtractBaseResults,
+    ),
+  relations: async (request: ExtractRelationsRequest): Promise<ExtractRelationsResults> =>
+    jsonRequest(
+      config,
+      'extract',
+      'extractRelations',
+      validateExtractRelationsRequest(request),
+      validateExtractRelationsResults,
+    ),
+  summary: async (request: ExtractSummaryRequest): Promise<ExtractSummaryResults> =>
+    jsonRequest(
+      config,
+      'extract',
+      'extractSummary',
+      validateExtractSummaryRequest(request),
+      validateExtractSummaryResults,
+    ),
+});
+
+const DEFAULT_CONFIG: Config = {
+  provider: 'knowledgator',
+  validateResponses: true,
+  timeout: 30000,
+  retryPolicy: {
+    maxTries: 3,
+    baseDelay: 0.25,
+    maxDelay: 10,
+    retryableStatuses: [408, 409, 429] as const,
+    jitter: true,
+    jitterMin: 0.5,
+    jitterMax: 1.5,
   },
-  endpoints: {
-    ...DEFAULT_ENDPOINTS,
-    ...config?.endpoints,
-  },
-  ...getBaseConfig(config),
-});
-
-export const createRapidApiConfig = (
-  service: keyof ServerConfig,
-  config?: KnowledgatorConfig,
-): KnowledgatorConfig => {
-  const baseUrl = config?.baseUrl || RAPID_API_SERVERS[service];
-  const host = baseUrl.replace('https://', '');
-
-  return {
-    baseUrl: config?.baseUrl || RAPID_API_SERVERS[service],
-    baseHeaders: {
-      ...getRapidApiHeaders(host, config?.apiKey),
-      ...config?.baseHeaders,
-    },
-    endpoints: {
-      ...DEFAULT_ENDPOINTS,
-      ...config?.endpoints,
-    },
-    ...getBaseConfig(config),
-  };
 };
 
-export const createClient = (config: KnowledgatorConfig) => ({
-  comprehend: createComprehendApi(config),
-  extract: createExtractApi(config),
-});
+export const createClient = (config?: Config) => {
+  const finalConfig: Config = { ...DEFAULT_CONFIG, ...config };
+
+  return {
+    comprehend: createComprehendApi(finalConfig),
+    extract: createExtractApi(finalConfig),
+  };
+};

@@ -22,8 +22,8 @@ export const RAPID_API_SERVERS: Required<ServerConfig> = {
   extract: 'https://extract-it.p.rapidapi.com',
 } as const;
 
-export const getRapidApiHeaders = (host: string, apiKey?: string): Record<string, string> => ({
+export const getRapidApiHeaders = (host?: string, apiKey?: string): Record<string, string> => ({
   'Content-Type': 'application/json',
-  'x-rapidapi-host': host,
+  'x-rapidapi-host': host ?? '',
   'x-rapidapi-key': apiKey ?? '',
 });

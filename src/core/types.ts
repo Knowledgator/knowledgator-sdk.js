@@ -1,4 +1,4 @@
-import type { Config } from '../client/http/types';
+import type { HttpConfig } from '../client/http/types';
 
 export interface ServerConfig {
   readonly comprehend?: string;
@@ -12,8 +12,17 @@ export interface EndpointConfig {
   readonly extractSummary?: string;
 }
 
-export interface KnowledgatorConfig extends Config {
+export type Config = ((
+  | {
+      readonly provider?: 'knowledgator' | 'rapidapi';
+    }
+  | {
+      readonly provider: 'custom';
+      readonly servers: ServerConfig;
+      readonly endpoints: EndpointConfig;
+    }
+) & {
   readonly apiKey?: string;
-  readonly endpoints?: EndpointConfig;
   readonly validateResponses?: boolean;
-}
+}) &
+  HttpConfig;

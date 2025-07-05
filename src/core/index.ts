@@ -1,7 +1,2 @@
-export {
-  getBaseConfig,
-  createKnowledgatorConfig,
-  createRapidApiConfig,
-  createClient,
-} from './core';
-export type { ServerConfig, EndpointConfig, KnowledgatorConfig } from './types';
+export { createClient } from './core';
+export type { ServerConfig, EndpointConfig, Config } from './types';
