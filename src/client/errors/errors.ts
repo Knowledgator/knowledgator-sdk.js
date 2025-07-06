@@ -26,9 +26,9 @@ export class HttpTimeoutError extends Error {
 
 export class HttpRetryError extends Error {
   constructor(
-    public readonly lastResponseStatus: number | null,
-    public readonly lastResponseStatusText: string | null,
-    public readonly lastErrorMessage: string | null,
+    public readonly lastResponseStatus: number | undefined,
+    public readonly lastResponseStatusText: string | undefined,
+    public readonly lastErrorMessage: string | undefined,
     public readonly attempts: number,
     public readonly url: string,
     public readonly method: string,

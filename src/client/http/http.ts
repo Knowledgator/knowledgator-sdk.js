@@ -15,55 +15,40 @@ import type { HttpConfig, HttpOptions } from './types';
 const makeRequest =
   (config: HttpConfig) =>
   async (method: string, path?: string, options: HttpOptions = {}): Promise<Response> => {
-    const {
-      params,
-      timeout,
-      retries,
-      omit,
-      headers,
-      signal: userSignal,
-      ...requestOverrides
-    } = options;
+    const url = buildUrl(config.baseUrl ?? '', path, options.params, options.omit);
+    const timeout = Math.min(options.timeout ?? config.timeout ?? 0, ABSOLUTE_MAX_TIMEOUT_MS);
 
-    const url = buildUrl(config.baseUrl ?? '', path, params, omit);
+    const retries = options.retries ?? config.retryPolicy?.maxTries ?? 0;
+    const maxAttempts = Math.min(retries + 1, ABSOLUTE_MAX_RETRIES + 1);
 
-    const maxTries = Math.min(retries ?? config.retryPolicy?.maxTries ?? 0, ABSOLUTE_MAX_RETRIES);
-    const requestTimeout = Math.min(timeout ?? config.timeout ?? 0, ABSOLUTE_MAX_TIMEOUT_MS);
+    if (options.signal?.aborted) {
+      throw new AbortError();
+    }
 
-    let attempt = 0;
-    let lastResponse: Response | null = null;
-    let lastError: Error | null = null;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const isLastAttempt = attempt === maxAttempts - 1;
 
-    while (attempt < maxTries) {
       const controller = new AbortController();
       let timeoutId: ReturnType<typeof setTimeout> | null = null;
-      let abortListener: (() => void) | undefined;
-      let isTimeoutAbort = false;
 
-      if (userSignal) {
-        if (userSignal.aborted) {
-          throw new AbortError('Request was aborted');
-        }
+      const onAbort = () => {
+        controller.abort();
+      };
+      options.signal?.addEventListener('abort', onAbort);
 
-        abortListener = () => {
-          controller.abort();
-        };
-        userSignal.addEventListener('abort', abortListener);
-      }
-
-      if (requestTimeout) {
-        timeoutId = setTimeout(() => {
-          isTimeoutAbort = true;
-          controller.abort();
-        }, requestTimeout);
+      if (timeout > 0) {
+        timeoutId = setTimeout(() => controller.abort(), timeout);
       }
 
       try {
         let requestInit: RequestInit = {
           method,
-          headers: mergeHeaders(config.baseHeaders, headers ? convertHeaders(headers) : undefined),
+          headers: mergeHeaders(
+            config.baseHeaders,
+            options.headers ? convertHeaders(options.headers) : undefined,
+          ),
           signal: controller.signal,
-          ...requestOverrides,
+          body: options.body,
         };
 
         if (config.requestInterceptor) {
@@ -84,66 +69,44 @@ const makeRequest =
           }
         }
 
-        const shouldRetryRequest = shouldRetry(config.retryPolicy, response.status);
-
-        if (attempt >= maxTries - 1 || !shouldRetryRequest) {
-          if (!response.ok && !shouldRetryRequest) {
-            throw new HttpError(response);
-          }
+        if (response.ok) {
           return response;
         }
 
-        lastResponse = response;
-        const delay = calculateBackoff(config.retryPolicy, attempt);
-        await sleep(delay * 1000);
-        attempt++;
+        if (!shouldRetry(config.retryPolicy, response.status) || isLastAttempt) {
+          throw new HttpError(response);
+        }
+
+        await sleep(calculateBackoff(config.retryPolicy, attempt) * 1000);
       } catch (err) {
         const error = getError(err);
 
         if (isAbortError(error)) {
-          if (userSignal?.aborted) {
+          if (options.signal?.aborted) {
+            throw new AbortError();
+          }
+          throw new HttpTimeoutError(timeout, url, method, attempt + 1);
+        }
+
+        if (isLastAttempt) {
+          if (error instanceof HttpError || error instanceof InterceptorError) {
             throw error;
           }
-          if (isTimeoutAbort && requestTimeout) {
-            throw new HttpTimeoutError(requestTimeout, url, method, attempt + 1);
-          }
+          throw new HttpRetryError(undefined, undefined, error.message, maxAttempts, url, method);
+        }
+
+        const isRetryable = error instanceof TypeError || error instanceof HttpTimeoutError;
+
+        if (!isRetryable) {
           throw error;
         }
 
-        if (error instanceof HttpError && attempt >= maxTries - 1) {
-          throw error;
-        }
-
-        lastError = error;
-
-        if (attempt >= maxTries - 1) {
-          if (error instanceof TypeError) {
-            throw new HttpRetryError(
-              lastResponse?.status ?? null,
-              lastResponse?.statusText ?? null,
-              lastError?.message ?? null,
-              attempt + 1,
-              url,
-              method,
-            );
-          }
-          throw error;
-        }
-
-        if (error instanceof TypeError || (isAbortError(error) && isTimeoutAbort)) {
-          const delay = calculateBackoff(config.retryPolicy, attempt);
-          await sleep(delay * 1000);
-          attempt++;
-        } else {
-          throw error;
-        }
+        await sleep(calculateBackoff(config.retryPolicy, attempt) * 1000);
       } finally {
         if (timeoutId) {
           clearTimeout(timeoutId);
         }
-        if (userSignal && abortListener) {
-          userSignal.removeEventListener('abort', abortListener);
-        }
+        options.signal?.removeEventListener('abort', onAbort);
       }
     }
 
