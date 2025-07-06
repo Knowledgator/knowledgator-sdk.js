@@ -92,7 +92,6 @@ export class InterceptorError extends Error {
       `${type === 'request' ? 'Request' : 'Response'} interceptor failed for ${method} ${url} (attempt ${attempt}): ${originalError.message}`,
     );
     this.name = 'InterceptorError';
-    this.cause = originalError;
   }
 }
 
