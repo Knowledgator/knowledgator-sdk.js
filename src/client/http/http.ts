@@ -80,7 +80,6 @@ const makeRequest =
         await sleep(calculateBackoff(config.retryPolicy, attempt) * 1000);
       } catch (err) {
         const error = getError(err);
-
         if (isAbortError(error)) {
           if (options.signal?.aborted) {
             throw new AbortError();
@@ -88,14 +87,14 @@ const makeRequest =
           throw new HttpTimeoutError(timeout, url, method, attempt + 1);
         }
 
-        if (isLastAttempt) {
-          if (error instanceof HttpError || error instanceof InterceptorError) {
-            throw error;
-          }
-          throw new HttpRetryError(undefined, undefined, error.message, maxAttempts, url, method);
-        }
-
         const isRetryable = error instanceof TypeError || error instanceof HttpTimeoutError;
+
+        if (isLastAttempt) {
+          if (isRetryable) {
+            throw new HttpRetryError(undefined, undefined, error.message, maxAttempts, url, method);
+          }
+          throw error;
+        }
 
         if (!isRetryable) {
           throw error;
