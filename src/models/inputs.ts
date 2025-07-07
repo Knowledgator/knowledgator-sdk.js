@@ -40,17 +40,17 @@ const ExtractSummaryRequestSchema = v.object({
   prompt: v.optional(v.string()),
 });
 
-export type ClassificationExample = v.InferOutput<typeof ClassificationExampleSchema>;
+export type ClassificationExample = v.InferInput<typeof ClassificationExampleSchema>;
 
-export type TextLabels = v.InferOutput<typeof TextLabelsSchema>;
+export type TextLabels = v.InferInput<typeof TextLabelsSchema>;
 
-export type ComprehendRequest = v.InferOutput<typeof ComprehendRequestSchema>;
+export type ComprehendRequest = v.InferInput<typeof ComprehendRequestSchema>;
 
-export type ExtractBaseRequest = v.InferOutput<typeof ExtractBaseRequestSchema>;
+export type ExtractBaseRequest = v.InferInput<typeof ExtractBaseRequestSchema>;
 
-export type ExtractRelationsRequest = v.InferOutput<typeof ExtractRelationsRequestSchema>;
+export type ExtractRelationsRequest = v.InferInput<typeof ExtractRelationsRequestSchema>;
 
-export type ExtractSummaryRequest = v.InferOutput<typeof ExtractSummaryRequestSchema>;
+export type ExtractSummaryRequest = v.InferInput<typeof ExtractSummaryRequestSchema>;
 
 export const validateClassificationExample = (data: unknown): ClassificationExample =>
   v.parse(ClassificationExampleSchema, data);

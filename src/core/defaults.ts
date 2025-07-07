@@ -1,4 +1,4 @@
-import type { EndpointConfig, ServerConfig } from './types';
+import type { Config, EndpointConfig, ServerConfig } from './types';
 
 export const DEFAULT_ENDPOINTS: Required<EndpointConfig> = {
   comprehend: '/comprehend',
@@ -27,3 +27,18 @@ export const getRapidApiHeaders = (host?: string, apiKey?: string): Record<strin
   'x-rapidapi-host': host ?? '',
   'x-rapidapi-key': apiKey ?? '',
 });
+
+export const DEFAULT_CONFIG: Config = {
+  provider: 'knowledgator',
+  validateResponses: true,
+  timeout: 30000,
+  retryPolicy: {
+    maxTries: 3,
+    baseDelay: 0.25,
+    maxDelay: 10,
+    retryableStatuses: [408, 409, 429],
+    jitter: true,
+    jitterMin: 0.5,
+    jitterMax: 1.5,
+  },
+};

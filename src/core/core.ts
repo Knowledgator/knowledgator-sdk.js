@@ -21,6 +21,7 @@ import {
 } from '../models/outputs';
 
 import {
+  DEFAULT_CONFIG,
   DEFAULT_ENDPOINTS,
   DEFAULT_SERVERS,
   getDefaultHeaders,
@@ -107,23 +108,15 @@ const createExtractApi = (config: Config) => ({
     ),
 });
 
-const DEFAULT_CONFIG: Config = {
-  provider: 'knowledgator',
-  validateResponses: true,
-  timeout: 30000,
-  retryPolicy: {
-    maxTries: 3,
-    baseDelay: 0.25,
-    maxDelay: 10,
-    retryableStatuses: [408, 409, 429] as const,
-    jitter: true,
-    jitterMin: 0.5,
-    jitterMax: 1.5,
-  },
-};
-
 export const createClient = (config?: Config) => {
-  const finalConfig: Config = { ...DEFAULT_CONFIG, ...config };
+  const finalConfig: Config = {
+    ...DEFAULT_CONFIG,
+    ...config,
+    retryPolicy: {
+      ...DEFAULT_CONFIG.retryPolicy,
+      ...config?.retryPolicy,
+    },
+  };
 
   return {
     comprehend: createComprehendApi(finalConfig),
