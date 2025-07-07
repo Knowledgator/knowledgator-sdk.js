@@ -634,6 +634,17 @@ describe(mergeHeaders.name, () => {
 });
 
 describe(convertHeaders.name, () => {
+  describe('when headers are invalid', () => {
+    it.each([null, undefined, true, false, 'string', 123])(
+      'should return empty object for %p',
+      (input) => {
+        const result = convertHeaders(input as unknown as Headers);
+
+        expect(result).toStrictEqual({});
+      },
+    );
+  });
+
   describe('when headers are empty', () => {
     it('should return proper result for empty Headers', () => {
       const headers = new Headers();

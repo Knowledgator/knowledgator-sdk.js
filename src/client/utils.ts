@@ -105,7 +105,7 @@ export const convertHeaders = (
     const result: Record<string, string> = {};
 
     for (const [key, value] of Object.entries(headers)) {
-      result[key] = Array.isArray(value) ? value.join(', ') : String(value);
+      result[key] = value;
     }
 
     return result;

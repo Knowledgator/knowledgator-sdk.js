@@ -11,6 +11,20 @@ const config: JestConfigWithTsJest = {
       },
     ],
   },
+  collectCoverage: false,
+  collectCoverageFrom: [
+    'src/**/*.ts',
+    '!src/**/*.d.ts',
+    '!src/**/*.test.ts',
+    '!src/**/*.spec.ts',
+    '!src/__tests__/**',
+    '!src/**/index.ts',
+    '!src/**/types.ts',
+  ],
+  coverageDirectory: 'coverage',
+  coverageReporters: ['text', 'text-summary', 'html', 'lcov', 'json', 'cobertura'],
+  coveragePathIgnorePatterns: ['/node_modules/', '/dist/', '/coverage/', '\\.d\\.ts$'],
+  coverageProvider: 'v8',
 };
 
 export default config;

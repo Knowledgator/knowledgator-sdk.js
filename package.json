@@ -55,6 +55,7 @@
     "lint:fix": "eslint \"src/**/*.ts\" --fix",
     "lint-staged": "lint-staged",
     "test": "jest",
+    "test:coverage": "jest --coverage",
     "prepare": "npm run build && husky install",
     "prepublishOnly": "npm run build"
   },

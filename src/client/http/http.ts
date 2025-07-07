@@ -81,9 +81,6 @@ const makeRequest =
       } catch (err) {
         const error = getError(err);
         if (isAbortError(error)) {
-          if (options.signal?.aborted) {
-            throw new AbortError();
-          }
           throw new HttpTimeoutError(timeout, url, method, attempt + 1);
         }
 

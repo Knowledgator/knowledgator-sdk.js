@@ -243,6 +243,19 @@ describe(createHttpClient.name, () => {
       expect(mockAddEventListener).toHaveBeenCalledWith('abort', expect.any(Function));
       expect(mockRemoveEventListener).toHaveBeenCalledWith('abort', expect.any(Function));
     });
+
+    it('should call controller.abort when onAbort is triggered', async () => {
+      const client = createHttpClient(config);
+      mockAddEventListener.mockImplementation((event, callback) => {
+        if (event === 'abort') {
+          (callback as () => void)();
+        }
+      });
+
+      await client.get('/test', { signal: mockSignal });
+
+      expect(mockAbort).toHaveBeenCalled();
+    });
   });
 
   describe('request interceptor', () => {
