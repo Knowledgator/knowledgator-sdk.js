@@ -20,7 +20,6 @@
     "type": "git",
     "url": "git+https://github.com/Knowledgator/knowledgator-sdk.js.git"
   },
-  "type": "module",
   "main": "dist/cjs/index.cjs",
   "module": "dist/esm/index.js",
   "types": "dist/cjs/index.d.ts",
