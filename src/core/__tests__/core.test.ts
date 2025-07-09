@@ -197,6 +197,12 @@ describe(createClient.name, () => {
           retryPolicy: DEFAULT_CONFIG.retryPolicy,
           requestInterceptor: DEFAULT_CONFIG.requestInterceptor,
           responseInterceptor: DEFAULT_CONFIG.responseInterceptor,
+          logger: expect.objectContaining({
+            debug: expect.any(Function),
+            info: expect.any(Function),
+            warn: expect.any(Function),
+            error: expect.any(Function),
+          }),
         });
       });
     });
@@ -220,6 +226,12 @@ describe(createClient.name, () => {
           retryPolicy: DEFAULT_CONFIG.retryPolicy,
           requestInterceptor: DEFAULT_CONFIG.requestInterceptor,
           responseInterceptor: DEFAULT_CONFIG.responseInterceptor,
+          logger: expect.objectContaining({
+            debug: expect.any(Function),
+            info: expect.any(Function),
+            warn: expect.any(Function),
+            error: expect.any(Function),
+          }),
         });
       });
     });
@@ -250,6 +262,12 @@ describe(createClient.name, () => {
           retryPolicy: DEFAULT_CONFIG.retryPolicy,
           requestInterceptor: DEFAULT_CONFIG.requestInterceptor,
           responseInterceptor: DEFAULT_CONFIG.responseInterceptor,
+          logger: expect.objectContaining({
+            debug: expect.any(Function),
+            info: expect.any(Function),
+            warn: expect.any(Function),
+            error: expect.any(Function),
+          }),
         });
         expect(mockHttpClient.post).toHaveBeenCalledWith('/custom-comprehend', {
           body: JSON.stringify(comprehendRequest),
@@ -595,6 +613,12 @@ describe(createClient.name, () => {
         retryPolicy: DEFAULT_CONFIG.retryPolicy,
         requestInterceptor: DEFAULT_CONFIG.requestInterceptor,
         responseInterceptor: DEFAULT_CONFIG.responseInterceptor,
+        logger: expect.objectContaining({
+          debug: expect.any(Function),
+          info: expect.any(Function),
+          warn: expect.any(Function),
+          error: expect.any(Function),
+        }),
       });
     });
 

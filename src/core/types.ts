@@ -1,4 +1,5 @@
 import type { HttpConfig } from '../client/http/types';
+import type { Logger } from '../client/logger/types';
 
 export interface ServerConfig {
   readonly comprehend?: string;
@@ -24,5 +25,7 @@ export type Config = ((
 ) & {
   readonly apiKey?: string;
   readonly validateResponses?: boolean;
+  readonly debug?: boolean;
+  readonly logger?: Logger;
 }) &
   HttpConfig;

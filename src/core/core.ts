@@ -1,4 +1,5 @@
 import { createHttpClient } from '../client/http';
+import { createDefaultLogger } from '../client/logger/logger';
 import {
   validateComprehendRequest,
   validateExtractBaseRequest,
@@ -60,6 +61,7 @@ const jsonRequest = async <TInput, TOutput>(
     retryPolicy: config.retryPolicy,
     requestInterceptor: config.requestInterceptor,
     responseInterceptor: config.responseInterceptor,
+    logger: config.logger,
   });
 
   const response = await httpClient.post(endpoint, {
@@ -116,7 +118,10 @@ export const createClient = (config?: Config) => {
       ...DEFAULT_CONFIG.retryPolicy,
       ...config?.retryPolicy,
     },
+    logger: config?.logger || createDefaultLogger(config?.debug ?? DEFAULT_CONFIG.debug),
   };
+
+  finalConfig.logger?.debug('SDK client initialized', { finalConfig });
 
   return {
     comprehend: createComprehendApi(finalConfig),

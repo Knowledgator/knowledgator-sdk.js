@@ -41,4 +41,5 @@ export const DEFAULT_CONFIG: Config = {
     jitterMin: 0.5,
     jitterMax: 1.5,
   },
+  debug: false,
 };
