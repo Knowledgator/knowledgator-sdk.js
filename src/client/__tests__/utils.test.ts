@@ -450,10 +450,10 @@ describe(buildUrl.name, () => {
     it('should throw InvalidURLError for invalid baseUrl with correct details', () => {
       try {
         buildUrl('invalid-url', '/path');
-      } catch (error) {
-        expect(error).toBeInstanceOf(InvalidURLError);
-        expect((error as Error).message).toContain('invalid-url');
-        expect((error as Error).message).toContain('/path');
+      } catch (err) {
+        expect(err).toBeInstanceOf(InvalidURLError);
+        expect((err as Error).message).toContain('invalid-url');
+        expect((err as Error).message).toContain('/path');
       }
     });
   });

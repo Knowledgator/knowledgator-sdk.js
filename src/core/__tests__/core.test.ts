@@ -1,4 +1,9 @@
 import type { RetryPolicy } from '../../client/config/types';
+import {
+  ApiKeyRequiredError,
+  CustomProviderMissingConfigError,
+  JsonParseError,
+} from '../../client/errors';
 import { createHttpClient, HttpOptions } from '../../client/http';
 import {
   type ComprehendRequest,
@@ -28,6 +33,7 @@ import {
   getRapidApiHeaders,
   RAPID_API_SERVERS,
 } from '../defaults';
+import type { EndpointConfig, ServerConfig } from '../types';
 
 jest.mock('../../client/http');
 jest.mock('../../models/inputs');
@@ -140,7 +146,7 @@ describe(createClient.name, () => {
 
   describe('client creation', () => {
     it('should create client with default config', () => {
-      const client = createClient();
+      const client = createClient('apiKey');
 
       expect(client).toHaveProperty('comprehend');
       expect(client).toHaveProperty('extract');
@@ -151,7 +157,7 @@ describe(createClient.name, () => {
     });
 
     it('should create client with rapidapi config', () => {
-      const client = createClient({
+      const client = createClient('apiKey', {
         provider: 'rapidapi',
       });
 
@@ -160,7 +166,7 @@ describe(createClient.name, () => {
     });
 
     it('should create client with custom config', () => {
-      const client = createClient({
+      const client = createClient('', {
         provider: 'custom',
         servers: {
           comprehend: 'https://custom-comprehend.com',
@@ -185,8 +191,14 @@ describe(createClient.name, () => {
 
   describe('provider configurations', () => {
     describe('when provider is knowledgator', () => {
+      it('should throw error when api key is empty', async () => {
+        const client = createClient('');
+
+        await expect(client.comprehend.it(comprehendRequest)).rejects.toThrow(ApiKeyRequiredError);
+      });
+
       it('should use default servers and headers', async () => {
-        const client = createClient({ apiKey: 'apiKey' });
+        const client = createClient('apiKey');
 
         await client.comprehend.it(comprehendRequest);
 
@@ -208,10 +220,15 @@ describe(createClient.name, () => {
     });
 
     describe('when provider is rapidapi', () => {
+      it('should throw error when api key is empty', async () => {
+        const client = createClient('', { provider: 'rapidapi' });
+
+        await expect(client.comprehend.it(comprehendRequest)).rejects.toThrow(ApiKeyRequiredError);
+      });
+
       it('should use Rapid API servers and headers', async () => {
-        const client = createClient({
+        const client = createClient('apiKey', {
           provider: 'rapidapi',
-          apiKey: 'apiKey',
         });
 
         await client.comprehend.it(comprehendRequest);
@@ -237,8 +254,40 @@ describe(createClient.name, () => {
     });
 
     describe('when provider is custom', () => {
+      it('should throw error when servers are not provided', async () => {
+        const client = createClient('', {
+          provider: 'custom',
+          servers: undefined as unknown as ServerConfig,
+          endpoints: {
+            comprehend: '/custom-comprehend',
+            extract: '/custom-extract',
+            extractRelations: '/custom-relations',
+            extractSummary: '/custom-summary',
+          },
+        });
+
+        await expect(client.comprehend.it(comprehendRequest)).rejects.toThrow(
+          CustomProviderMissingConfigError,
+        );
+      });
+
+      it('should throw error when endpoints are not provided', async () => {
+        const client = createClient('', {
+          provider: 'custom',
+          servers: {
+            comprehend: 'https://custom-comprehend.com',
+            extract: 'https://custom-extract.com',
+          },
+          endpoints: undefined as unknown as EndpointConfig,
+        });
+
+        await expect(client.comprehend.it(comprehendRequest)).rejects.toThrow(
+          CustomProviderMissingConfigError,
+        );
+      });
+
       it('should use custom servers and headers', async () => {
-        const client = createClient({
+        const client = createClient('', {
           provider: 'custom',
           servers: {
             comprehend: 'https://custom-comprehend.com',
@@ -278,7 +327,7 @@ describe(createClient.name, () => {
 
   describe('comprehend API', () => {
     it('should call comprehend endpoint with correct parameters', async () => {
-      const client = createClient({ apiKey: 'apiKey' });
+      const client = createClient('apiKey');
       mockResponse.json.mockResolvedValue(comprehendResults);
 
       const result = await client.comprehend.it(comprehendRequest);
@@ -295,7 +344,7 @@ describe(createClient.name, () => {
   describe('extract API', () => {
     describe('entities method', () => {
       it('should call extract entities endpoint', async () => {
-        const client = createClient({ apiKey: 'apiKey' });
+        const client = createClient('apiKey');
         mockResponse.json.mockResolvedValue(extractBaseResults);
 
         const result = await client.extract.entities(extractBaseRequest);
@@ -311,7 +360,7 @@ describe(createClient.name, () => {
 
     describe('relations method', () => {
       it('should call extract relations endpoint', async () => {
-        const client = createClient({ apiKey: 'apiKey' });
+        const client = createClient('apiKey');
         mockResponse.json.mockResolvedValue(extractRelationsResults);
 
         const result = await client.extract.relations(extractRelationsRequest);
@@ -327,7 +376,7 @@ describe(createClient.name, () => {
 
     describe('summary method', () => {
       it('should call extract summary endpoint', async () => {
-        const client = createClient({ apiKey: 'apiKey' });
+        const client = createClient('apiKey');
         mockResponse.json.mockResolvedValue(extractSummaryResults);
 
         const result = await client.extract.summary(extractSummaryRequest);
@@ -344,8 +393,7 @@ describe(createClient.name, () => {
 
   describe('response validation', () => {
     it('should validate responses when validateResponses is true', async () => {
-      const client = createClient({
-        apiKey: 'apiKey',
+      const client = createClient('apiKey', {
         validateResponses: true,
       });
       mockResponse.json.mockResolvedValue(comprehendResults);
@@ -358,8 +406,7 @@ describe(createClient.name, () => {
     });
 
     it('should skip validation when validateResponses is false', async () => {
-      const client = createClient({
-        apiKey: 'apiKey',
+      const client = createClient('apiKey', {
         validateResponses: false,
       });
       mockResponse.json.mockResolvedValue(comprehendResults);
@@ -373,8 +420,7 @@ describe(createClient.name, () => {
 
   describe('HTTP client configuration', () => {
     it('should pass through timeout configuration', async () => {
-      const client = createClient({
-        apiKey: 'apiKey',
+      const client = createClient('apiKey', {
         timeout: 5000,
       });
 
@@ -393,8 +439,7 @@ describe(createClient.name, () => {
         baseDelay: 1,
         maxDelay: 30,
       };
-      const client = createClient({
-        apiKey: 'apiKey',
+      const client = createClient('apiKey', {
         retryPolicy,
       });
 
@@ -410,8 +455,7 @@ describe(createClient.name, () => {
     it('should pass through interceptors', async () => {
       const requestInterceptor = jest.fn();
       const responseInterceptor = jest.fn();
-      const client = createClient({
-        apiKey: 'apiKey',
+      const client = createClient('apiKey', {
         requestInterceptor,
         responseInterceptor,
       });
@@ -430,7 +474,7 @@ describe(createClient.name, () => {
   describe('validation errors', () => {
     describe('request validation failures', () => {
       it('should throw error when comprehend request validation fails', async () => {
-        const client = createClient({ apiKey: 'apiKey' });
+        const client = createClient('apiKey');
         mockValidateComprehendRequest.mockImplementation(() => {
           throw new Error('Invalid comprehend request');
         });
@@ -444,7 +488,7 @@ describe(createClient.name, () => {
       });
 
       it('should throw error when extract base request validation fails', async () => {
-        const client = createClient({ apiKey: 'apiKey' });
+        const client = createClient('apiKey');
         mockValidateExtractBaseRequest.mockImplementation(() => {
           throw new Error('Invalid extract base request');
         });
@@ -458,7 +502,7 @@ describe(createClient.name, () => {
       });
 
       it('should throw error when extract relations request validation fails', async () => {
-        const client = createClient({ apiKey: 'apiKey' });
+        const client = createClient('apiKey');
         mockValidateExtractRelationsRequest.mockImplementation(() => {
           throw new Error('Invalid extract relations request');
         });
@@ -472,7 +516,7 @@ describe(createClient.name, () => {
       });
 
       it('should throw error when extract summary request validation fails', async () => {
-        const client = createClient({ apiKey: 'apiKey' });
+        const client = createClient('apiKey');
         mockValidateExtractSummaryRequest.mockImplementation(() => {
           throw new Error('Invalid extract summary request');
         });
@@ -488,8 +532,7 @@ describe(createClient.name, () => {
 
     describe('response validation failures', () => {
       it('should throw error when comprehend response validation fails', async () => {
-        const client = createClient({
-          apiKey: 'apiKey',
+        const client = createClient('apiKey', {
           validateResponses: true,
         });
         mockResponse.json.mockResolvedValue({});
@@ -505,8 +548,7 @@ describe(createClient.name, () => {
       });
 
       it('should throw error when extract base response validation fails', async () => {
-        const client = createClient({
-          apiKey: 'apiKey',
+        const client = createClient('apiKey', {
           validateResponses: true,
         });
         mockResponse.json.mockResolvedValue({});
@@ -522,8 +564,7 @@ describe(createClient.name, () => {
       });
 
       it('should throw error when extract relations response validation fails', async () => {
-        const client = createClient({
-          apiKey: 'apiKey',
+        const client = createClient('apiKey', {
           validateResponses: true,
         });
         mockResponse.json.mockResolvedValue({});
@@ -539,8 +580,7 @@ describe(createClient.name, () => {
       });
 
       it('should throw error when extract summary response validation fails', async () => {
-        const client = createClient({
-          apiKey: 'apiKey',
+        const client = createClient('apiKey', {
           validateResponses: true,
         });
         mockResponse.json.mockResolvedValue({});
@@ -556,8 +596,7 @@ describe(createClient.name, () => {
       });
 
       it('should not validate response when validateResponses is false', async () => {
-        const client = createClient({
-          apiKey: 'apiKey',
+        const client = createClient('apiKey', {
           validateResponses: false,
         });
         mockResponse.json.mockResolvedValue({});
@@ -572,24 +611,15 @@ describe(createClient.name, () => {
 
   describe('error handling', () => {
     it('should propagate HTTP client errors', async () => {
-      const client = createClient({ apiKey: 'apiKey' });
+      const client = createClient('apiKey');
       const httpError = new Error('Network error');
       mockHttpClient.post.mockRejectedValue(httpError);
 
       await expect(client.comprehend.it(comprehendRequest)).rejects.toThrow('Network error');
     });
 
-    it('should propagate JSON parsing errors', async () => {
-      const client = createClient({ apiKey: 'apiKey' });
-      const jsonError = new Error('Invalid JSON');
-      mockResponse.json.mockRejectedValue(jsonError);
-
-      await expect(client.comprehend.it(comprehendRequest)).rejects.toThrow('Invalid JSON');
-    });
-
     it('should propagate validation errors', async () => {
-      const client = createClient({
-        apiKey: 'apiKey',
+      const client = createClient('apiKey', {
         validateResponses: true,
       });
       mockValidateComprehendResults.mockImplementation(() => {
@@ -598,11 +628,22 @@ describe(createClient.name, () => {
 
       await expect(client.comprehend.it(comprehendRequest)).rejects.toThrow('Validation failed');
     });
+
+    it('should throw JsonParseError when JSON parsing fails', async () => {
+      const client = createClient('apiKey');
+      const jsonError = new Error('Invalid JSON');
+      mockResponse.json.mockRejectedValue(jsonError);
+
+      await expect(client.comprehend.it(comprehendRequest)).rejects.toThrow(JsonParseError);
+      await expect(client.comprehend.it(comprehendRequest)).rejects.toThrow(
+        'Failed to parse JSON response: Invalid JSON',
+      );
+    });
   });
 
   describe('default configuration', () => {
     it('should use default configuration values', async () => {
-      const client = createClient({ apiKey: 'apiKey' });
+      const client = createClient('apiKey');
 
       await client.comprehend.it(comprehendRequest);
 
@@ -623,8 +664,7 @@ describe(createClient.name, () => {
     });
 
     it('should merge custom config with defaults', async () => {
-      const client = createClient({
-        apiKey: 'apiKey',
+      const client = createClient('apiKey', {
         timeout: 5000,
         retryPolicy: { maxTries: 1 },
       });

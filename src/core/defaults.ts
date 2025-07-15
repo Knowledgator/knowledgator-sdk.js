@@ -12,9 +12,9 @@ export const DEFAULT_SERVERS: Required<ServerConfig> = {
   extract: 'https://api.extract-it.knowledgator.com',
 } as const;
 
-export const getDefaultHeaders = (apiKey?: string): Record<string, string> => ({
+export const getDefaultHeaders = (apiKey: string): Record<string, string> => ({
   'Content-Type': 'application/json',
-  'KnowledgatorAPI-Key': apiKey ?? '',
+  'KnowledgatorAPI-Key': apiKey,
 });
 
 export const RAPID_API_SERVERS: Required<ServerConfig> = {
@@ -22,10 +22,10 @@ export const RAPID_API_SERVERS: Required<ServerConfig> = {
   extract: 'https://extract-it.p.rapidapi.com',
 } as const;
 
-export const getRapidApiHeaders = (host?: string, apiKey?: string): Record<string, string> => ({
+export const getRapidApiHeaders = (host: string, apiKey: string): Record<string, string> => ({
   'Content-Type': 'application/json',
-  'x-rapidapi-host': host ?? '',
-  'x-rapidapi-key': apiKey ?? '',
+  'x-rapidapi-host': host,
+  'x-rapidapi-key': apiKey,
 });
 
 export const DEFAULT_CONFIG: Config = {

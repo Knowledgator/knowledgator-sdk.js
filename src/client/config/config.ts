@@ -1,4 +1,9 @@
-import { InvalidAttemptError, InvalidBaseDelayError, InvalidMaxDelayError } from '../errors';
+import {
+  InvalidAttemptError,
+  InvalidBaseDelayError,
+  InvalidJitterRangeError,
+  InvalidMaxDelayError,
+} from '../errors';
 
 import type { RetryPolicy } from './types';
 
@@ -30,10 +35,16 @@ export const calculateBackoff = (policy: RetryPolicy | undefined, attempt: numbe
   let delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
 
   if (jitter) {
-    delay *=
-      Math.random() * ((policy?.jitterMax ?? 0) - (policy?.jitterMin ?? 0)) +
-      (policy?.jitterMin ?? 0);
+    const jitterMin = policy?.jitterMin ?? 0.5;
+    const jitterMax = policy?.jitterMax ?? 1.5;
+
+    if (jitterMin < 0 || jitterMax < 0 || jitterMin > jitterMax) {
+      throw new InvalidJitterRangeError(jitterMin, jitterMax);
+    }
+
+    const jitterMultiplier = Math.random() * (jitterMax - jitterMin) + jitterMin;
+    delay *= jitterMultiplier;
   }
 
-  return delay;
+  return Math.max(0, Math.min(delay, maxDelay));
 };

@@ -1,5 +1,11 @@
+import {
+  ApiKeyRequiredError,
+  CustomProviderMissingConfigError,
+  JsonParseError,
+} from '../client/errors';
 import { createHttpClient } from '../client/http';
 import { createDefaultLogger } from '../client/logger/logger';
+import { getError } from '../client/utils';
 import {
   validateComprehendRequest,
   validateExtractBaseRequest,
@@ -32,23 +38,42 @@ import {
 import type { EndpointConfig, Config, ServerConfig } from './types';
 
 const jsonRequest = async <TInput, TOutput>(
+  apiKey: string,
   config: Config,
   serviceKey: keyof ServerConfig,
   endpointKey: keyof EndpointConfig,
   data: TInput,
   validator: (data: unknown) => TOutput,
 ): Promise<TOutput> => {
-  let baseUrl: string | undefined = DEFAULT_SERVERS[serviceKey];
-  let endpoint: string | undefined = DEFAULT_ENDPOINTS[endpointKey];
-  let baseHeaders: Record<string, string> | undefined = getDefaultHeaders(config.apiKey);
+  let baseUrl: string | undefined;
+  let endpoint: string | undefined;
+  let baseHeaders: Record<string, string> | undefined;
+
+  if (config.provider === 'knowledgator') {
+    if (!apiKey) {
+      throw new ApiKeyRequiredError();
+    }
+
+    baseUrl = DEFAULT_SERVERS[serviceKey];
+    endpoint = DEFAULT_ENDPOINTS[endpointKey];
+    baseHeaders = getDefaultHeaders(apiKey);
+  }
 
   if (config.provider === 'rapidapi') {
+    if (!apiKey) {
+      throw new ApiKeyRequiredError();
+    }
+
     baseUrl = RAPID_API_SERVERS[serviceKey];
     endpoint = DEFAULT_ENDPOINTS[endpointKey];
-    baseHeaders = getRapidApiHeaders(baseUrl.replace('https://', ''), config.apiKey);
+    baseHeaders = getRapidApiHeaders(baseUrl.replace('https://', ''), apiKey);
   }
 
   if (config.provider === 'custom') {
+    if (!config.servers || !config.endpoints) {
+      throw new CustomProviderMissingConfigError();
+    }
+
     baseUrl = config.servers[serviceKey];
     endpoint = config.endpoints[endpointKey];
     baseHeaders = config.baseHeaders;
@@ -67,14 +92,19 @@ const jsonRequest = async <TInput, TOutput>(
   const response = await httpClient.post(endpoint, {
     body: JSON.stringify(data),
   });
-  const output = await response.json();
 
-  return config.validateResponses ? validator(output) : (output as TOutput);
+  try {
+    const output = await response.json();
+    return config.validateResponses ? validator(output) : (output as TOutput);
+  } catch (err) {
+    throw new JsonParseError(getError(err));
+  }
 };
 
-const createComprehendApi = (config: Config) => ({
+const createComprehendApi = (apiKey: string, config: Config) => ({
   it: async (request: ComprehendRequest): Promise<ComprehendResults> =>
     jsonRequest(
+      apiKey,
       config,
       'comprehend',
       'comprehend',
@@ -83,9 +113,10 @@ const createComprehendApi = (config: Config) => ({
     ),
 });
 
-const createExtractApi = (config: Config) => ({
+const createExtractApi = (apiKey: string, config: Config) => ({
   entities: async (request: ExtractBaseRequest): Promise<ExtractBaseResults> =>
     jsonRequest(
+      apiKey,
       config,
       'extract',
       'extract',
@@ -94,6 +125,7 @@ const createExtractApi = (config: Config) => ({
     ),
   relations: async (request: ExtractRelationsRequest): Promise<ExtractRelationsResults> =>
     jsonRequest(
+      apiKey,
       config,
       'extract',
       'extractRelations',
@@ -102,6 +134,7 @@ const createExtractApi = (config: Config) => ({
     ),
   summary: async (request: ExtractSummaryRequest): Promise<ExtractSummaryResults> =>
     jsonRequest(
+      apiKey,
       config,
       'extract',
       'extractSummary',
@@ -110,7 +143,7 @@ const createExtractApi = (config: Config) => ({
     ),
 });
 
-export const createClient = (config?: Config) => {
+export const createClient = (apiKey: string, config?: Config) => {
   const finalConfig: Config = {
     ...DEFAULT_CONFIG,
     ...config,
@@ -124,7 +157,7 @@ export const createClient = (config?: Config) => {
   finalConfig.logger?.debug('SDK client initialized', { finalConfig });
 
   return {
-    comprehend: createComprehendApi(finalConfig),
-    extract: createExtractApi(finalConfig),
+    comprehend: createComprehendApi(apiKey, finalConfig),
+    extract: createExtractApi(apiKey, finalConfig),
   };
 };

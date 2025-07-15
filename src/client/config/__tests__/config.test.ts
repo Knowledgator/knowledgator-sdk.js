@@ -1,4 +1,9 @@
-import { InvalidAttemptError, InvalidBaseDelayError, InvalidMaxDelayError } from '../../errors';
+import {
+  InvalidAttemptError,
+  InvalidBaseDelayError,
+  InvalidMaxDelayError,
+  InvalidJitterRangeError,
+} from '../../errors';
 import { calculateBackoff, shouldRetry } from '../config';
 import type { RetryPolicy } from '../types';
 
@@ -159,12 +164,23 @@ describe(calculateBackoff.name, () => {
         jitter: true,
       };
 
-      it.each([{ attempt: 0 }, { attempt: 1 }, { attempt: 2 }])(
-        'should return 0 for attempt $attempt',
-        ({ attempt }) => {
-          expect(calculateBackoff(policy, attempt)).toBe(0);
-        },
-      );
+      afterEach(() => {
+        jest.restoreAllMocks();
+      });
+
+      describe('should apply default jitter range (0.5 to 1.5)', () => {
+        beforeEach(() => {
+          jest.spyOn(Math, 'random').mockReturnValue(0);
+        });
+
+        it.each([
+          { attempt: 0, expected: 500 },
+          { attempt: 1, expected: 1000 },
+          { attempt: 2, expected: 2000 },
+        ])('should apply minimum jitter for attempt $attempt', ({ attempt, expected }) => {
+          expect(calculateBackoff(policy, attempt)).toBe(expected);
+        });
+      });
     });
 
     describe('when jitter range is provided', () => {
@@ -218,6 +234,34 @@ describe(calculateBackoff.name, () => {
         ])('should apply jitter to delay for attempt $attempt', ({ attempt, expected }) => {
           expect(calculateBackoff(policy, attempt)).toBe(expected);
         });
+      });
+    });
+
+    describe('when jitter range is invalid', () => {
+      const policy: RetryPolicy = {
+        baseDelay: 1000,
+        maxDelay: 10_000,
+        jitter: true,
+        jitterMin: 0.5,
+        jitterMax: 1.5,
+      };
+
+      it('should throw InvalidJitterRangeError when jitterMin is negative', () => {
+        expect(() => {
+          calculateBackoff({ ...policy, jitterMin: -0.5 }, 0);
+        }).toThrow(InvalidJitterRangeError);
+      });
+
+      it('should throw InvalidJitterRangeError when jitterMax is negative', () => {
+        expect(() => {
+          calculateBackoff({ ...policy, jitterMax: -0.5 }, 0);
+        }).toThrow(InvalidJitterRangeError);
+      });
+
+      it('should throw InvalidJitterRangeError when jitterMin is greater than jitterMax', () => {
+        expect(() => {
+          calculateBackoff({ ...policy, jitterMin: 1.5, jitterMax: 0.5 }, 0);
+        }).toThrow(InvalidJitterRangeError);
       });
     });
   });

@@ -23,7 +23,6 @@ export type Config = ((
       readonly endpoints: EndpointConfig;
     }
 ) & {
-  readonly apiKey?: string;
   readonly validateResponses?: boolean;
   readonly debug?: boolean;
   readonly logger?: Logger;

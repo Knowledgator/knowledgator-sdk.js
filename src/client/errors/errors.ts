@@ -101,3 +101,38 @@ export class UnexpectedError extends Error {
     this.name = 'UnexpectedError';
   }
 }
+
+export class ApiKeyRequiredError extends Error {
+  constructor(message: string = 'API key is required') {
+    super(message);
+    this.name = 'ApiKeyRequiredError';
+  }
+}
+
+export class CustomProviderMissingConfigError extends Error {
+  constructor(message: string = 'Custom provider requires servers and endpoints configuration') {
+    super(message);
+    this.name = 'CustomProviderMissingConfigError';
+  }
+}
+
+export class JsonParseError extends Error {
+  constructor(
+    public readonly originalError: Error,
+    message: string = 'Failed to parse JSON response',
+  ) {
+    super(`${message}: ${originalError.message}`);
+    this.name = 'JsonParseError';
+  }
+}
+
+export class InvalidJitterRangeError extends Error {
+  constructor(
+    public readonly jitterMin: number,
+    public readonly jitterMax: number,
+    message: string = `Invalid jitter range: min=${jitterMin}, max=${jitterMax}`,
+  ) {
+    super(message);
+    this.name = 'InvalidJitterRangeError';
+  }
+}
