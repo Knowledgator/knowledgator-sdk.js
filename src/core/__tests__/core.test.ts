@@ -151,7 +151,7 @@ describe(createClient.name, () => {
       expect(client).toHaveProperty('comprehend');
       expect(client).toHaveProperty('extract');
       expect(client.comprehend).toHaveProperty('it');
-      expect(client.extract).toHaveProperty('entities');
+      expect(client.extract).toHaveProperty('it');
       expect(client.extract).toHaveProperty('relations');
       expect(client.extract).toHaveProperty('summary');
     });
@@ -183,7 +183,7 @@ describe(createClient.name, () => {
       expect(client).toHaveProperty('comprehend');
       expect(client.comprehend).toHaveProperty('it');
       expect(client).toHaveProperty('extract');
-      expect(client.extract).toHaveProperty('entities');
+      expect(client.extract).toHaveProperty('it');
       expect(client.extract).toHaveProperty('relations');
       expect(client.extract).toHaveProperty('summary');
     });
@@ -342,12 +342,12 @@ describe(createClient.name, () => {
   });
 
   describe('extract API', () => {
-    describe('entities method', () => {
-      it('should call extract entities endpoint', async () => {
+    describe('it method', () => {
+      it('should call extract it endpoint', async () => {
         const client = createClient('apiKey');
         mockResponse.json.mockResolvedValue(extractBaseResults);
 
-        const result = await client.extract.entities(extractBaseRequest);
+        const result = await client.extract.it(extractBaseRequest);
 
         expect(mockValidateExtractBaseRequest).toHaveBeenCalledWith(extractBaseRequest);
         expect(mockHttpClient.post).toHaveBeenCalledWith('/extract', {
@@ -493,7 +493,7 @@ describe(createClient.name, () => {
           throw new Error('Invalid extract base request');
         });
 
-        await expect(client.extract.entities({} as ExtractBaseRequest)).rejects.toThrow(
+        await expect(client.extract.it({} as ExtractBaseRequest)).rejects.toThrow(
           'Invalid extract base request',
         );
 
@@ -556,7 +556,7 @@ describe(createClient.name, () => {
           throw new Error('Invalid extract base response');
         });
 
-        await expect(client.extract.entities(extractBaseRequest)).rejects.toThrow(
+        await expect(client.extract.it(extractBaseRequest)).rejects.toThrow(
           'Invalid extract base response',
         );
 

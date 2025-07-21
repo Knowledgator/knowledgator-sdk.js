@@ -114,7 +114,7 @@ const createComprehendApi = (apiKey: string, config: Config) => ({
 });
 
 const createExtractApi = (apiKey: string, config: Config) => ({
-  entities: async (request: ExtractBaseRequest): Promise<ExtractBaseResults> =>
+  it: async (request: ExtractBaseRequest): Promise<ExtractBaseResults> =>
     jsonRequest(
       apiKey,
       config,
