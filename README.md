@@ -439,4 +439,4 @@ Feel free to contribute and open issues or PRs.
 
 ## License
 
-Licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
+Licensed under the MIT License. See [LICENSE](LICENSE) for details.

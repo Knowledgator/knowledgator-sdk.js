@@ -14,7 +14,7 @@
   "bugs": {
     "url": "https://github.com/Knowledgator/knowledgator-sdk.js/issues"
   },
-  "license": "Apache-2.0",
+  "license": "MIT",
   "author": "Knowledgator <info@knowledgator.com>",
   "repository": {
     "type": "git",
