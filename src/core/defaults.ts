@@ -8,8 +8,8 @@ export const DEFAULT_ENDPOINTS: Required<EndpointConfig> = {
 } as const;
 
 export const DEFAULT_SERVERS: Required<ServerConfig> = {
-  comprehend: 'https://api.comprehend-it.knowledgator.com',
-  extract: 'https://api.extract-it.knowledgator.com',
+  comprehend: 'https://api.knowledgator.com',
+  extract: 'https://api.knowledgator.com',
 } as const;
 
 export const getDefaultHeaders = (apiKey: string): Record<string, string> => ({
