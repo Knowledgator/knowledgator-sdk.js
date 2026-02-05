@@ -5,11 +5,27 @@ export const DEFAULT_ENDPOINTS: Required<EndpointConfig> = {
   extract: '/extract',
   extractRelations: '/extract/relations',
   extractSummary: '/extract/summary',
+  instruct: '/instruct',
+  datasets: '/datasets',
+  datasetsById: '/datasets/:id',
+  datasetsUpload: '/datasets/:id/files/upload',
+  datasetsFormats: '/files/formats/datasets',
+  finetuningModels: '/trainings/models',
+  finetuningModelsById: '/trainings/models/:id',
+  finetuningModelsTypes: '/trainings/models/types',
+  finetuningTrainings: '/trainings',
+  finetuningTrainingsById: '/trainings/:id',
+  finetuningTrainingsStop: '/trainings/:id/stop',
+  finetuningTrainingsEvents: '/trainings/:id/events',
+  finetuningTrainingsMetrics: '/trainings/:id/metrics/:metric',
 } as const;
 
 export const DEFAULT_SERVERS: Required<ServerConfig> = {
   comprehend: 'https://api.knowledgator.com',
   extract: 'https://api.knowledgator.com',
+  instruct: 'https://api.knowledgator.com',
+  datasets: 'https://api.knowledgator.com',
+  finetuning: 'https://api.knowledgator.com',
 } as const;
 
 export const getDefaultHeaders = (apiKey: string): Record<string, string> => ({
@@ -17,9 +33,10 @@ export const getDefaultHeaders = (apiKey: string): Record<string, string> => ({
   'KnowledgatorAPI-Key': apiKey,
 });
 
-export const RAPID_API_SERVERS: Required<ServerConfig> = {
+export const RAPID_API_SERVERS: ServerConfig = {
   comprehend: 'https://comprehend-it.p.rapidapi.com',
   extract: 'https://extract-it.p.rapidapi.com',
+  instruct: 'https://instruct-it.p.rapidapi.com',
 } as const;
 
 export const getRapidApiHeaders = (host: string, apiKey: string): Record<string, string> => ({

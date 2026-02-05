@@ -17,8 +17,13 @@ The Knowledgator TypeScript SDK provides access to the Knowledgator APIs for zer
 
 - `Comprehend-it`: An efficient and accurate zero-shot and few-shot classifier ideal for text.
 - `Extract-it`: Fast, interpretable, and accurate information extraction tool that efficiently handles different extraction tasks, like NER and relation extraction.
+- `Instruct-it`: Extraction of structured information from raw text based on provided schema.
 - `Link-it` (coming soon): Zero-shot entity-linking tool that supports entity extraction, disambiguation, and linking to custom databases.
-- `Instruct-it` (coming soon): Extraction of structured information from raw text based on provided schema.
+
+### Available Services
+
+- `Datasets`: Manage datasets for NER, text classification, and relation extraction.
+- `Fine-tuning`: Fine-tune models with your own datasets for improved performance.
 
 ## Documentation
 
@@ -102,6 +107,9 @@ console.log(result); // Outputs ComprehendResults with classifications
 - [Information Extraction (Extract)](#information-extraction-extract)
 - [Relation Extraction](#relation-extraction)
 - [Summarization](#summarization)
+- [Structured Extraction (Instruct)](#structured-extraction-instruct)
+- [Dataset Management](#dataset-management)
+- [Fine-tuning](#fine-tuning)
 - [Configuration Options](#configuration-options)
 - [RapidAPI Integration](#rapidapi-integration)
 - [Available Resources and Operations](#available-resources-and-operations)
@@ -169,6 +177,142 @@ const result = await client.extract.summary({
 });
 
 console.log(result); // Outputs ExtractSummaryResults
+```
+
+## Structured Extraction (Instruct)
+
+Use `instruct.it` for extracting structured information based on a schema.
+
+```typescript
+import { createClient } from '@knowledgator/typescript-sdk';
+
+const client = createClient('your-api-key-here');
+
+const result = await client.instruct.it({
+  text: 'John Doe works at Acme Corp as a Software Engineer.',
+  template: JSON.stringify({
+    name: '',
+    company: '',
+    position: '',
+  }),
+  output_type: 'json',
+});
+
+console.log(result); // Outputs InstructItResults with structured data
+```
+
+## Dataset Management
+
+Manage datasets for training and fine-tuning models.
+
+### List Datasets
+
+```typescript
+import { createClient } from '@knowledgator/typescript-sdk';
+
+const client = createClient('your-api-key-here');
+
+const result = await client.datasets.list({
+  offset: 0,
+  limit: 10,
+  type: 'ner',
+});
+
+console.log(result); // Outputs ListDatasetsResults
+```
+
+### Create Dataset
+
+```typescript
+import { createClient } from '@knowledgator/typescript-sdk';
+
+const client = createClient('your-api-key-here');
+
+const result = await client.datasets.create({
+  name: 'My NER Dataset',
+  type: 'ner',
+  format: 'jsonl',
+  description: 'Dataset for named entity recognition',
+});
+
+console.log(result); // Outputs DatasetCreationResults
+```
+
+### Upload File to Dataset
+
+```typescript
+import { createClient } from '@knowledgator/typescript-sdk';
+import { readFileSync } from 'fs';
+
+const client = createClient('your-api-key-here');
+
+const file = readFileSync('data.jsonl');
+const result = await client.datasets.upload('dataset-id', { file });
+
+console.log(result); // Outputs DatasetCreationResults
+```
+
+## Fine-tuning
+
+Fine-tune models with your own datasets.
+
+### Start Training
+
+```typescript
+import { createClient } from '@knowledgator/typescript-sdk';
+
+const client = createClient('your-api-key-here');
+
+const result = await client.finetuning.startTraining({
+  model_id: 'base-model-id',
+  dataset_id: 'dataset-id',
+  hyperparameters: {
+    epochs: 10,
+    batch_size: 16,
+    learning_rate: 0.0001,
+  },
+});
+
+console.log(result); // Outputs TrainingObject
+```
+
+### List Training Jobs
+
+```typescript
+import { createClient } from '@knowledgator/typescript-sdk';
+
+const client = createClient('your-api-key-here');
+
+// List successful trainings only
+const successful = await client.finetuning.listTrainings({
+  status: 'completed',
+  limit: 10,
+});
+
+// List active trainings with pagination
+const result = await client.finetuning.listTrainings({
+  offset: 0,
+  limit: 10,
+  status: 'active',
+});
+
+console.log(result); // Outputs ListTrainingsResults
+```
+
+### Get Training Metrics
+
+```typescript
+import { createClient } from '@knowledgator/typescript-sdk';
+
+const client = createClient('your-api-key-here');
+
+const result = await client.finetuning.getMetrics('training-id', {
+  metric: 'loss',
+  offset: 0,
+  limit: 100,
+});
+
+console.log(result); // Outputs ListMetricsResults
 ```
 
 ## Configuration Options
@@ -243,6 +387,34 @@ const result = await client.comprehend.it({
 - `it(request)`: Zero-shot named entity recognition (NER)
 - `relations(request)`: Relation extraction between entities
 - `summary(request)`: Text summarization with customizable prompts
+
+### Instruct API
+
+- `it(request)`: Structured information extraction based on schema
+
+### Datasets API
+
+- `list(request)`: List datasets with optional filtering
+- `create(request)`: Create a new dataset
+- `get(datasetId)`: Get dataset details by ID
+- `update(datasetId, request)`: Update dataset metadata
+- `delete(datasetId)`: Delete a dataset
+- `upload(datasetId, request)`: Upload a file to an existing dataset
+- `listFormats(request)`: List available dataset formats
+
+### Finetuning API
+
+- `createBaseModel(request)`: Create a new base model for training
+- `listModels(request)`: List available base models
+- `getModel(modelId)`: Get model details by ID
+- `listModelTypes()`: List available model types
+- `startTraining(request)`: Start a new training job
+- `listTrainings(request)`: List training jobs with optional filtering
+- `getTraining(trainingId)`: Get training job details by ID
+- `deleteTraining(trainingId)`: Delete a training job
+- `stopTraining(trainingId)`: Stop a running training job
+- `listEvents(trainingId, request)`: List events for a training job
+- `getMetrics(trainingId, request)`: Get training metrics for a specific metric type
 
 ### Configuration Types
 
