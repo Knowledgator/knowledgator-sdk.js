@@ -65,7 +65,6 @@ const extractBaseRequest: ExtractBaseRequest = {
 const extractRelationsRequest: ExtractRelationsRequest = {
   text: '',
   relations: [],
-  entities: [],
 };
 const extractSummaryRequest: ExtractSummaryRequest = {
   text: '',
@@ -75,31 +74,15 @@ const instructItRequest: InstructItRequest = {
 };
 const comprehendResults: ComprehendResults = {
   results: [],
-  input_text: '',
-  labels: [],
-  threshold: 1,
-  status: '',
 };
 const extractBaseResults: ExtractBaseResults = {
   results: [],
-  input_text: '',
-  labels: [],
-  threshold: 1,
-  status: '',
 };
 const extractRelationsResults: ExtractRelationsResults = {
   results: [],
-  input_text: '',
-  entities: [],
-  relations: [],
-  threshold: 1,
-  status: '',
 };
 const extractSummaryResults: ExtractSummaryResults = {
-  summary: '',
-  input_text: '',
-  threshold: 1,
-  status: '',
+  results: [],
 };
 const instructItResults: InstructItResults = {
   outputs: { summary: 'Test summary', key_points: [] },
@@ -270,7 +253,7 @@ describe(createClient.name, () => {
         expect(mockCreateHttpClient).toHaveBeenCalledWith({
           baseUrl: RAPID_API_SERVERS.comprehend,
           baseHeaders: getRapidApiHeaders(
-            RAPID_API_SERVERS.comprehend.replace('https://', ''),
+            RAPID_API_SERVERS.comprehend?.replace('https://', '') || '',
             'apiKey',
           ),
           timeout: DEFAULT_CONFIG.timeout,

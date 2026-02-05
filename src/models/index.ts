@@ -23,6 +23,3 @@ export {
   validateExtractSummaryResults,
   validateInstructItResults,
 } from './outputs';
-
-// Re-export datasets types for convenience
-export * from '../datasets';

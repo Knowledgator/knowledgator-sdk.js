@@ -655,9 +655,7 @@ describe(convertHeaders.name, () => {
     });
 
     it('should return proper result for empty array', () => {
-      const headers = [];
-
-      const result = convertHeaders(headers);
+      const result = convertHeaders([]);
 
       expect(result).toStrictEqual({});
     });

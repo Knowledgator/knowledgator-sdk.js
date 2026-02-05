@@ -1,7 +1,10 @@
 import {
   ApiKeyRequiredError,
   CustomProviderMissingConfigError,
+  CustomProviderMissingEndpointError,
+  CustomProviderMissingServerError,
   JsonParseError,
+  RapidApiNotSupportedError,
 } from '../client/errors';
 import { createHttpClient } from '../client/http';
 import { createDefaultLogger } from '../client/logger/logger';
@@ -89,14 +92,82 @@ import {
   getRapidApiHeaders,
   RAPID_API_SERVERS,
 } from './defaults';
-import type { EndpointConfig, Config, ServerConfig } from './types';
+import type {
+  EndpointConfig,
+  Config,
+  ServerConfig,
+  RequestConfig,
+  SendRequestOptions,
+} from './types';
+import { omitHeaders, replacePathParams } from './utils';
 
-// Helper to build URL with path parameters
-const buildUrl = (template: string, params: Record<string, string>): string => {
-  return Object.entries(params).reduce(
-    (url, [key, value]) => url.replace(`:${key}`, value),
-    template,
-  );
+const resolveRapidApiConfig = (
+  apiKey: string,
+  serviceKey: keyof ServerConfig,
+  endpointKey: keyof EndpointConfig,
+  pathParams?: Record<string, string>,
+): RequestConfig => {
+  if (!apiKey) {
+    throw new ApiKeyRequiredError();
+  }
+
+  const baseUrl = RAPID_API_SERVERS[serviceKey];
+
+  if (!baseUrl) {
+    throw new RapidApiNotSupportedError(serviceKey);
+  }
+
+  return {
+    baseUrl,
+    endpoint: replacePathParams(DEFAULT_ENDPOINTS[endpointKey], pathParams),
+    baseHeaders: getRapidApiHeaders(baseUrl.replace('https://', ''), apiKey),
+  };
+};
+
+const resolveCustomConfig = (
+  config: Extract<Config, { provider: 'custom' }>,
+  serviceKey: keyof ServerConfig,
+  endpointKey: keyof EndpointConfig,
+  pathParams?: Record<string, string>,
+): RequestConfig => {
+  if (!config.servers || !config.endpoints) {
+    throw new CustomProviderMissingConfigError();
+  }
+
+  const baseUrl = config.servers[serviceKey];
+
+  if (!baseUrl) {
+    throw new CustomProviderMissingServerError(serviceKey);
+  }
+
+  const endpoint = config.endpoints[endpointKey];
+
+  if (!endpoint) {
+    throw new CustomProviderMissingEndpointError(endpointKey);
+  }
+
+  return {
+    baseUrl,
+    endpoint: replacePathParams(endpoint, pathParams),
+    baseHeaders: config.baseHeaders,
+  };
+};
+
+const resolveDefaultConfig = (
+  apiKey: string,
+  serviceKey: keyof ServerConfig,
+  endpointKey: keyof EndpointConfig,
+  pathParams?: Record<string, string>,
+): RequestConfig => {
+  if (!apiKey) {
+    throw new ApiKeyRequiredError();
+  }
+
+  return {
+    baseUrl: DEFAULT_SERVERS[serviceKey],
+    endpoint: replacePathParams(DEFAULT_ENDPOINTS[endpointKey], pathParams),
+    baseHeaders: getDefaultHeaders(apiKey),
+  };
 };
 
 const resolveRequestConfig = (
@@ -105,58 +176,26 @@ const resolveRequestConfig = (
   serviceKey: keyof ServerConfig,
   endpointKey: keyof EndpointConfig,
   pathParams?: Record<string, string>,
-) => {
-  let baseUrl: string | undefined;
-  let endpoint: string | undefined;
-  let baseHeaders: Record<string, string> | undefined;
-
-  // Determine if we should use RapidAPI
-  const useRapidApi = config.provider === 'rapidapi' && !config.disableRapidApi;
-
-  if (useRapidApi) {
-    if (!apiKey) {
-      throw new ApiKeyRequiredError();
-    }
-    baseUrl = RAPID_API_SERVERS[serviceKey];
-    if (!baseUrl) {
-      throw new Error(`RapidAPI not supported for service: ${serviceKey}`);
-    }
-    endpoint = DEFAULT_ENDPOINTS[endpointKey];
-    baseHeaders = getRapidApiHeaders(baseUrl.replace('https://', ''), apiKey);
-  } else if (config.provider === 'custom') {
-    if (!config.servers || !config.endpoints) {
-      throw new CustomProviderMissingConfigError();
-    }
-    baseUrl = config.servers[serviceKey];
-    endpoint = config.endpoints[endpointKey];
-    baseHeaders = config.baseHeaders;
-  } else {
-    // Default / Knowledgator (or fallback for disabled RapidAPI)
-    if (!apiKey) {
-      throw new ApiKeyRequiredError();
-    }
-    baseUrl = DEFAULT_SERVERS[serviceKey];
-    endpoint = DEFAULT_ENDPOINTS[endpointKey];
-    baseHeaders = getDefaultHeaders(apiKey);
+): RequestConfig => {
+  if (config.provider === 'rapidapi') {
+    return resolveRapidApiConfig(apiKey, serviceKey, endpointKey, pathParams);
   }
 
-  // Replace path parameters
-  if (pathParams && endpoint) {
-    endpoint = buildUrl(endpoint, pathParams);
+  if (config.provider === 'custom') {
+    return resolveCustomConfig(config, serviceKey, endpointKey, pathParams);
   }
 
-  return { baseUrl, endpoint, baseHeaders };
+  return resolveDefaultConfig(apiKey, serviceKey, endpointKey, pathParams);
 };
 
-const jsonRequest = async <TInput, TOutput>(
+const sendRequest = async <TOutput = void>(
   apiKey: string,
   config: Config,
-  serviceKey: keyof ServerConfig,
-  endpointKey: keyof EndpointConfig,
-  data: TInput,
-  validator: (data: unknown) => TOutput,
-  pathParams?: Record<string, string>,
+  options: SendRequestOptions<TOutput>,
 ): Promise<TOutput> => {
+  const { method, serviceKey, endpointKey, pathParams, queryParams, body, responseValidator } =
+    options;
+
   const { baseUrl, endpoint, baseHeaders } = resolveRequestConfig(
     apiKey,
     config,
@@ -165,49 +204,8 @@ const jsonRequest = async <TInput, TOutput>(
     pathParams,
   );
 
-  const httpClient = createHttpClient({
-    baseUrl,
-    baseHeaders,
-    timeout: config.timeout,
-    retryPolicy: config.retryPolicy,
-    requestInterceptor: config.requestInterceptor,
-    responseInterceptor: config.responseInterceptor,
-    logger: config.logger,
-  });
-
-  const response = await httpClient.post(endpoint, {
-    body: JSON.stringify(data),
-  });
-
-  try {
-    const output = await response.json();
-    return config.validateResponses ? validator(output) : (output as TOutput);
-  } catch (err) {
-    throw new JsonParseError(getError(err));
-  }
-};
-
-const sendMultipartRequest = async <TOutput>(
-  apiKey: string,
-  config: Config,
-  serviceKey: keyof ServerConfig,
-  endpointKey: keyof EndpointConfig,
-  formData: FormData,
-  validator: (data: unknown) => TOutput,
-  pathParams?: Record<string, string>,
-): Promise<TOutput> => {
-  const { baseUrl, endpoint, baseHeaders } = resolveRequestConfig(
-    apiKey,
-    config,
-    serviceKey,
-    endpointKey,
-    pathParams,
-  );
-
-  // Remove Content-Type header to allow browser to set multipart/form-data with boundary
-  const headers = { ...baseHeaders };
-  delete headers['Content-Type'];
-  delete headers['content-type'];
+  const headers =
+    body?.type === 'formData' ? omitHeaders(baseHeaders, ['Content-Type']) : baseHeaders;
 
   const httpClient = createHttpClient({
     baseUrl,
@@ -219,156 +217,59 @@ const sendMultipartRequest = async <TOutput>(
     logger: config.logger,
   });
 
-  const response = await httpClient.post(endpoint, {
-    body: formData,
-  });
+  const requestBody = body
+    ? body.type === 'json'
+      ? JSON.stringify(body.data)
+      : body.data
+    : undefined;
+  const requestOptions = { body: requestBody, params: queryParams };
+
+  let response: Response;
+  switch (method) {
+    case 'GET':
+      response = await httpClient.get(endpoint, requestOptions);
+      break;
+    case 'POST':
+      response = await httpClient.post(endpoint, requestOptions);
+      break;
+    case 'PUT':
+      response = await httpClient.put(endpoint, requestOptions);
+      break;
+    case 'PATCH':
+      response = await httpClient.patch(endpoint, requestOptions);
+      break;
+    case 'DELETE':
+      response = await httpClient.delete(endpoint, requestOptions);
+      break;
+    case 'HEAD':
+      response = await httpClient.head(endpoint, { params: queryParams });
+      break;
+    case 'OPTIONS':
+      response = await httpClient.options(endpoint, { params: queryParams });
+      break;
+    default: {
+      throw new Error(`Unsupported method: ${method}`);
+    }
+  }
+
+  if (response.status === 204) {
+    return undefined as TOutput;
+  }
 
   try {
     const output = await response.json();
-    return config.validateResponses ? validator(output) : (output as TOutput);
+
+    return config.validateResponses
+      ? responseValidator
+        ? responseValidator(output)
+        : (output as TOutput)
+      : (output as TOutput);
   } catch (err) {
     throw new JsonParseError(getError(err));
   }
 };
 
-const sendGetRequest = async <TOutput>(
-  apiKey: string,
-  config: Config,
-  serviceKey: keyof ServerConfig,
-  endpointKey: keyof EndpointConfig,
-  queryParams: Record<string, unknown>,
-  validator: (data: unknown) => TOutput,
-  pathParams?: Record<string, string>,
-): Promise<TOutput> => {
-  const { baseUrl, endpoint, baseHeaders } = resolveRequestConfig(
-    apiKey,
-    config,
-    serviceKey,
-    endpointKey,
-    pathParams,
-  );
-
-  // Build query string
-  const queryString = Object.entries(queryParams)
-    .filter(([, value]) => value !== undefined && value !== null)
-    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
-    .join('&');
-
-  const fullEndpoint = queryString ? `${endpoint}?${queryString}` : endpoint;
-
-  const httpClient = createHttpClient({
-    baseUrl,
-    baseHeaders,
-    timeout: config.timeout,
-    retryPolicy: config.retryPolicy,
-    requestInterceptor: config.requestInterceptor,
-    responseInterceptor: config.responseInterceptor,
-    logger: config.logger,
-  });
-
-  const response = await httpClient.get(fullEndpoint);
-
-  try {
-    const output = await response.json();
-    return config.validateResponses ? validator(output) : (output as TOutput);
-  } catch (err) {
-    throw new JsonParseError(getError(err));
-  }
-};
-
-const sendDeleteRequest = async (
-  apiKey: string,
-  config: Config,
-  serviceKey: keyof ServerConfig,
-  endpointKey: keyof EndpointConfig,
-  pathParams: Record<string, string>,
-): Promise<void> => {
-  const { baseUrl, endpoint, baseHeaders } = resolveRequestConfig(
-    apiKey,
-    config,
-    serviceKey,
-    endpointKey,
-    pathParams,
-  );
-
-  const httpClient = createHttpClient({
-    baseUrl,
-    baseHeaders,
-    timeout: config.timeout,
-    retryPolicy: config.retryPolicy,
-    requestInterceptor: config.requestInterceptor,
-    responseInterceptor: config.responseInterceptor,
-    logger: config.logger,
-  });
-
-  await httpClient.delete(endpoint);
-};
-
-const sendPatchRequest = async <TInput>(
-  apiKey: string,
-  config: Config,
-  serviceKey: keyof ServerConfig,
-  endpointKey: keyof EndpointConfig,
-  data: TInput,
-  pathParams: Record<string, string>,
-): Promise<void> => {
-  const { baseUrl, endpoint, baseHeaders } = resolveRequestConfig(
-    apiKey,
-    config,
-    serviceKey,
-    endpointKey,
-    pathParams,
-  );
-
-  const httpClient = createHttpClient({
-    baseUrl,
-    baseHeaders,
-    timeout: config.timeout,
-    retryPolicy: config.retryPolicy,
-    requestInterceptor: config.requestInterceptor,
-    responseInterceptor: config.responseInterceptor,
-    logger: config.logger,
-  });
-
-  await httpClient.patch(endpoint, {
-    body: JSON.stringify(data),
-  });
-};
-
-const sendSignalRequest = async (
-  apiKey: string,
-  config: Config,
-  serviceKey: keyof ServerConfig,
-  endpointKey: keyof EndpointConfig,
-  method: 'POST' | 'GET' = 'POST',
-  pathParams?: Record<string, string>,
-): Promise<void> => {
-  const { baseUrl, endpoint, baseHeaders } = resolveRequestConfig(
-    apiKey,
-    config,
-    serviceKey,
-    endpointKey,
-    pathParams,
-  );
-
-  const httpClient = createHttpClient({
-    baseUrl,
-    baseHeaders,
-    timeout: config.timeout,
-    retryPolicy: config.retryPolicy,
-    requestInterceptor: config.requestInterceptor,
-    responseInterceptor: config.responseInterceptor,
-    logger: config.logger,
-  });
-
-  if (method === 'POST') {
-    await httpClient.post(endpoint);
-  } else {
-    await httpClient.get(endpoint);
-  }
-};
-
-const instructMultipartRequest = async <TOutput>(
+const sendInstructRequest = async <TOutput>(
   apiKey: string,
   config: Config,
   serviceKey: keyof ServerConfig,
@@ -376,84 +277,78 @@ const instructMultipartRequest = async <TOutput>(
   data: InstructItRequest,
   validator: (data: unknown) => TOutput,
 ): Promise<TOutput> => {
-  // Create FormData for multipart/form-data request
   const formData = new FormData();
 
-  // Add text field (required)
   formData.append('text', data.text);
-
-  // Add optional fields
   if (data.template) {
     formData.append('template', data.template);
   }
-
   if (data.output_type) {
     formData.append('output_type', data.output_type);
   }
 
-  // Add filesmetadata as JSON array of file names
   if (data.files && data.files.length > 0) {
     const filesmetadata = data.files.map((file) => file.name);
     formData.append('filesmetadata', JSON.stringify(filesmetadata));
 
-    // Add file content for files that have content
     for (const file of data.files) {
       if (file.content) {
-        // Create a Blob from the Uint8Array content
         const blob = new Blob([file.content]);
         formData.append('files', blob, file.name);
       }
     }
   }
 
-  return sendMultipartRequest(apiKey, config, serviceKey, endpointKey, formData, validator);
+  return sendRequest(apiKey, config, {
+    method: 'POST',
+    serviceKey,
+    endpointKey,
+    body: { type: 'formData', data: formData },
+    responseValidator: validator,
+  });
 };
 
 const createComprehendApi = (apiKey: string, config: Config) => ({
   it: async (request: ComprehendRequest): Promise<ComprehendResults> =>
-    jsonRequest(
-      apiKey,
-      config,
-      'comprehend',
-      'comprehend',
-      validateComprehendRequest(request),
-      validateComprehendResults,
-    ),
+    sendRequest(apiKey, config, {
+      method: 'POST',
+      serviceKey: 'comprehend',
+      endpointKey: 'comprehend',
+      body: { type: 'json', data: validateComprehendRequest(request) },
+      responseValidator: validateComprehendResults,
+    }),
 });
 
 const createExtractApi = (apiKey: string, config: Config) => ({
   it: async (request: ExtractBaseRequest): Promise<ExtractBaseResults> =>
-    jsonRequest(
-      apiKey,
-      config,
-      'extract',
-      'extract',
-      validateExtractBaseRequest(request),
-      validateExtractBaseResults,
-    ),
+    sendRequest(apiKey, config, {
+      method: 'POST',
+      serviceKey: 'extract',
+      endpointKey: 'extract',
+      body: { type: 'json', data: validateExtractBaseRequest(request) },
+      responseValidator: validateExtractBaseResults,
+    }),
   relations: async (request: ExtractRelationsRequest): Promise<ExtractRelationsResults> =>
-    jsonRequest(
-      apiKey,
-      config,
-      'extract',
-      'extractRelations',
-      validateExtractRelationsRequest(request),
-      validateExtractRelationsResults,
-    ),
+    sendRequest(apiKey, config, {
+      method: 'POST',
+      serviceKey: 'extract',
+      endpointKey: 'extractRelations',
+      body: { type: 'json', data: validateExtractRelationsRequest(request) },
+      responseValidator: validateExtractRelationsResults,
+    }),
   summary: async (request: ExtractSummaryRequest): Promise<ExtractSummaryResults> =>
-    jsonRequest(
-      apiKey,
-      config,
-      'extract',
-      'extractSummary',
-      validateExtractSummaryRequest(request),
-      validateExtractSummaryResults,
-    ),
+    sendRequest(apiKey, config, {
+      method: 'POST',
+      serviceKey: 'extract',
+      endpointKey: 'extractSummary',
+      body: { type: 'json', data: validateExtractSummaryRequest(request) },
+      responseValidator: validateExtractSummaryResults,
+    }),
 });
 
 const createInstructApi = (apiKey: string, config: Config) => ({
   it: async (request: InstructItRequest): Promise<InstructItResults> =>
-    instructMultipartRequest(
+    sendInstructRequest(
       apiKey,
       config,
       'instruct',
@@ -464,11 +359,7 @@ const createInstructApi = (apiKey: string, config: Config) => ({
 });
 
 const createDatasetsApi = (apiKey: string, config: Config) => {
-  // Datasets always skips RapidAPI
-  const configWithSkip = { ...config, disableRapidApi: true };
-
-  // Helper for multipart dataset requests (create, upload)
-  const datasetMultipartRequest = async <TOutput>(
+  const sendDatasetsRequest = async <TOutput>(
     endpointKey: keyof EndpointConfig,
     data: CreateDatasetRequest | UploadDatasetRequest,
     validator: (data: unknown) => TOutput,
@@ -477,7 +368,6 @@ const createDatasetsApi = (apiKey: string, config: Config) => {
     const formData = new FormData();
 
     if ('name' in data) {
-      // CreateDatasetRequest
       formData.append('name', data.name);
       formData.append('type', data.type);
       formData.append('format', data.format);
@@ -488,201 +378,176 @@ const createDatasetsApi = (apiKey: string, config: Config) => {
         formData.append('file', data.file);
       }
     } else {
-      // UploadDatasetRequest
       formData.append('file', data.file);
     }
 
-    return sendMultipartRequest(
-      apiKey,
-      configWithSkip,
-      'datasets',
+    return sendRequest(apiKey, config, {
+      method: 'POST',
+      serviceKey: 'datasets',
       endpointKey,
-      formData,
-      validator,
       pathParams,
-    );
+      body: { type: 'formData', data: formData },
+      responseValidator: validator,
+    });
   };
 
   return {
     list: async (request: ListDatasetsRequest = {}): Promise<ListDatasetsResults> =>
-      sendGetRequest(
-        apiKey,
-        configWithSkip,
-        'datasets',
-        'datasets',
-        validateListDatasetsRequest(request),
-        validateListDatasetsResults,
-      ),
-
+      sendRequest(apiKey, config, {
+        method: 'GET',
+        serviceKey: 'datasets',
+        endpointKey: 'datasets',
+        queryParams: validateListDatasetsRequest(request),
+        responseValidator: validateListDatasetsResults,
+      }),
     create: async (request: CreateDatasetRequest): Promise<DatasetCreationResults> =>
-      datasetMultipartRequest(
+      sendDatasetsRequest(
         'datasets',
         validateCreateDatasetRequest(request),
         validateDatasetCreationResults,
       ),
-
     get: async (datasetId: string): Promise<Dataset> =>
-      sendGetRequest(apiKey, configWithSkip, 'datasets', 'datasetsById', {}, validateDataset, {
-        id: datasetId,
+      sendRequest(apiKey, config, {
+        method: 'GET',
+        serviceKey: 'datasets',
+        endpointKey: 'datasetsById',
+        pathParams: { id: datasetId },
+        responseValidator: validateDataset,
       }),
-
     update: async (datasetId: string, request: UpdateDatasetRequest): Promise<void> =>
-      sendPatchRequest(
-        apiKey,
-        configWithSkip,
-        'datasets',
-        'datasetsById',
-        validateUpdateDatasetRequest(request),
-        { id: datasetId },
-      ),
-
+      sendRequest(apiKey, config, {
+        method: 'PATCH',
+        serviceKey: 'datasets',
+        endpointKey: 'datasetsById',
+        pathParams: { id: datasetId },
+        body: { type: 'json', data: validateUpdateDatasetRequest(request) },
+      }),
     delete: async (datasetId: string): Promise<void> =>
-      sendDeleteRequest(apiKey, configWithSkip, 'datasets', 'datasetsById', { id: datasetId }),
-
+      sendRequest(apiKey, config, {
+        method: 'DELETE',
+        serviceKey: 'datasets',
+        endpointKey: 'datasetsById',
+        pathParams: { id: datasetId },
+      }),
     upload: async (
       datasetId: string,
       request: UploadDatasetRequest,
     ): Promise<DatasetCreationResults> =>
-      datasetMultipartRequest(
+      sendDatasetsRequest(
         'datasetsUpload',
         validateUploadDatasetRequest(request),
         validateDatasetCreationResults,
         { id: datasetId },
       ),
-
     listFormats: async (request: ListFormatsRequest = {}): Promise<ListFormatsResults> =>
-      sendGetRequest(
-        apiKey,
-        configWithSkip,
-        'datasets',
-        'datasetsFormats',
-        validateListFormatsRequest(request),
-        validateListFormatsResults,
-      ),
+      sendRequest(apiKey, config, {
+        method: 'GET',
+        serviceKey: 'datasets',
+        endpointKey: 'datasetsFormats',
+        queryParams: validateListFormatsRequest(request),
+        responseValidator: validateListFormatsResults,
+      }),
   };
 };
 
-const createFinetuningApi = (apiKey: string, config: Config) => {
-  // Fine-tuning always skips RapidAPI
-  const configWithSkip = { ...config, disableRapidApi: true };
+const createFinetuningApi = (apiKey: string, config: Config) => ({
+  createBaseModel: async (request: CreateBaseModelRequest): Promise<ObjectCreation> =>
+    sendRequest(apiKey, config, {
+      method: 'POST',
+      serviceKey: 'finetuning',
+      endpointKey: 'finetuningModels',
+      body: { type: 'json', data: validateCreateBaseModelRequest(request) },
+      responseValidator: validateObjectCreation,
+    }),
+  listModels: async (request: ListModelsRequest = {}): Promise<ListModelsResults> =>
+    sendRequest(apiKey, config, {
+      method: 'GET',
+      serviceKey: 'finetuning',
+      endpointKey: 'finetuningModels',
+      queryParams: validateListModelsRequest(request),
+      responseValidator: validateListModelsResults,
+    }),
+  getModel: async (modelId: string): Promise<TrainingModel> =>
+    sendRequest(apiKey, config, {
+      method: 'GET',
+      serviceKey: 'finetuning',
+      endpointKey: 'finetuningModelsById',
+      pathParams: { id: modelId },
+      responseValidator: validateTrainingModel,
+    }),
+  listModelTypes: async (): Promise<ListTagsResults> =>
+    sendRequest(apiKey, config, {
+      method: 'GET',
+      serviceKey: 'finetuning',
+      endpointKey: 'finetuningModelsTypes',
+      responseValidator: validateListTagsResults,
+    }),
+  startTraining: async (request: StartTrainingRequest): Promise<TrainingObject> =>
+    sendRequest(apiKey, config, {
+      method: 'POST',
+      serviceKey: 'finetuning',
+      endpointKey: 'finetuningTrainings',
+      body: { type: 'json', data: validateStartTrainingRequest(request) },
+      responseValidator: validateTrainingObject,
+    }),
+  listTrainings: async (request: ListTrainingsRequest = {}): Promise<ListTrainingsResults> =>
+    sendRequest(apiKey, config, {
+      method: 'GET',
+      serviceKey: 'finetuning',
+      endpointKey: 'finetuningTrainings',
+      queryParams: validateListTrainingsRequest(request),
+      responseValidator: validateListTrainingsResults,
+    }),
+  getTraining: async (trainingId: string): Promise<TrainingObject> =>
+    sendRequest(apiKey, config, {
+      method: 'GET',
+      serviceKey: 'finetuning',
+      endpointKey: 'finetuningTrainingsById',
+      pathParams: { id: trainingId },
+      responseValidator: validateTrainingObject,
+    }),
+  deleteTraining: async (trainingId: string): Promise<void> =>
+    sendRequest(apiKey, config, {
+      method: 'DELETE',
+      serviceKey: 'finetuning',
+      endpointKey: 'finetuningTrainingsById',
+      pathParams: { id: trainingId },
+    }),
+  stopTraining: async (trainingId: string): Promise<void> =>
+    sendRequest(apiKey, config, {
+      method: 'POST',
+      serviceKey: 'finetuning',
+      endpointKey: 'finetuningTrainingsStop',
+      pathParams: { id: trainingId },
+    }),
+  listEvents: async (
+    trainingId: string,
+    request: ListEventsRequest = {},
+  ): Promise<ListEventsResults> =>
+    sendRequest(apiKey, config, {
+      method: 'GET',
+      serviceKey: 'finetuning',
+      endpointKey: 'finetuningTrainingsEvents',
+      pathParams: { id: trainingId },
+      queryParams: validateListEventsRequest(request),
+      responseValidator: validateListEventsResults,
+    }),
+  getMetrics: async (
+    trainingId: string,
+    request: GetMetricsRequest,
+  ): Promise<ListMetricsResults> => {
+    const { metric, offset, limit } = validateGetMetricsRequest(request);
 
-  return {
-    // Model Management
-    createBaseModel: async (request: CreateBaseModelRequest): Promise<ObjectCreation> =>
-      jsonRequest(
-        apiKey,
-        configWithSkip,
-        'finetuning',
-        'finetuningModels',
-        validateCreateBaseModelRequest(request),
-        validateObjectCreation,
-      ),
-
-    listModels: async (request: ListModelsRequest = {}): Promise<ListModelsResults> =>
-      sendGetRequest(
-        apiKey,
-        configWithSkip,
-        'finetuning',
-        'finetuningModels',
-        validateListModelsRequest(request),
-        validateListModelsResults,
-      ),
-
-    getModel: async (modelId: string): Promise<TrainingModel> =>
-      sendGetRequest(
-        apiKey,
-        configWithSkip,
-        'finetuning',
-        'finetuningModelsById',
-        {},
-        validateTrainingModel,
-        { id: modelId },
-      ),
-
-    listModelTypes: async (): Promise<ListTagsResults> =>
-      sendGetRequest(
-        apiKey,
-        configWithSkip,
-        'finetuning',
-        'finetuningModelsTypes',
-        {},
-        validateListTagsResults,
-      ),
-
-    // Training Management
-    startTraining: async (request: StartTrainingRequest): Promise<TrainingObject> =>
-      jsonRequest(
-        apiKey,
-        configWithSkip,
-        'finetuning',
-        'finetuningTrainings',
-        validateStartTrainingRequest(request),
-        validateTrainingObject,
-      ),
-
-    listTrainings: async (request: ListTrainingsRequest = {}): Promise<ListTrainingsResults> =>
-      sendGetRequest(
-        apiKey,
-        configWithSkip,
-        'finetuning',
-        'finetuningTrainings',
-        validateListTrainingsRequest(request),
-        validateListTrainingsResults,
-      ),
-
-    getTraining: async (trainingId: string): Promise<TrainingObject> =>
-      sendGetRequest(
-        apiKey,
-        configWithSkip,
-        'finetuning',
-        'finetuningTrainingsById',
-        {},
-        validateTrainingObject,
-        { id: trainingId },
-      ),
-
-    deleteTraining: async (trainingId: string): Promise<void> =>
-      sendDeleteRequest(apiKey, configWithSkip, 'finetuning', 'finetuningTrainingsById', {
-        id: trainingId,
-      }),
-
-    stopTraining: async (trainingId: string): Promise<void> =>
-      sendSignalRequest(apiKey, configWithSkip, 'finetuning', 'finetuningTrainingsStop', 'POST', {
-        id: trainingId,
-      }),
-
-    // Training Monitoring
-    listEvents: async (
-      trainingId: string,
-      request: ListEventsRequest = {},
-    ): Promise<ListEventsResults> =>
-      sendGetRequest(
-        apiKey,
-        configWithSkip,
-        'finetuning',
-        'finetuningTrainingsEvents',
-        validateListEventsRequest(request),
-        validateListEventsResults,
-        { id: trainingId },
-      ),
-
-    getMetrics: async (
-      trainingId: string,
-      request: GetMetricsRequest,
-    ): Promise<ListMetricsResults> => {
-      const { metric, offset, limit } = validateGetMetricsRequest(request);
-      return sendGetRequest(
-        apiKey,
-        configWithSkip,
-        'finetuning',
-        'finetuningTrainingsMetrics',
-        { offset, limit },
-        validateListMetricsResults,
-        { id: trainingId, metric },
-      );
-    },
-  };
-};
+    return sendRequest(apiKey, config, {
+      method: 'GET',
+      serviceKey: 'finetuning',
+      endpointKey: 'finetuningTrainingsMetrics',
+      pathParams: { id: trainingId, metric },
+      queryParams: { offset, limit },
+      responseValidator: validateListMetricsResults,
+    });
+  },
+});
 
 export const createClient = (apiKey: string, config?: Config) => {
   const finalConfig: Config = {
