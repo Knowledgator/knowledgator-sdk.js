@@ -24,6 +24,7 @@ export interface ServerConfig {
   readonly instruct?: string;
   readonly datasets?: string;
   readonly finetuning?: string;
+  readonly inference?: string;
 }
 
 export interface EndpointConfig {
@@ -47,17 +48,19 @@ export interface EndpointConfig {
   readonly finetuningTrainingsStop?: string;
   readonly finetuningTrainingsEvents?: string;
   readonly finetuningTrainingsMetrics?: string;
+  readonly modelInference?: string;
+  readonly modelInferenceMethod?: string;
 }
 
 export type Config = (
   | {
-      readonly provider?: 'knowledgator' | 'rapidapi';
-    }
+    readonly provider?: 'knowledgator' | 'rapidapi';
+  }
   | {
-      readonly provider: 'custom';
-      readonly servers: ServerConfig;
-      readonly endpoints: EndpointConfig;
-    }
+    readonly provider: 'custom';
+    readonly servers: ServerConfig;
+    readonly endpoints: EndpointConfig;
+  }
 ) & {
   readonly validateResponses?: boolean;
   readonly debug?: boolean;

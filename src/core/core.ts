@@ -97,6 +97,7 @@ import {
   type InstructItResults,
   validateInstructItResults,
 } from '../models/outputs';
+import { createOpenModelApi } from '../open-model';
 
 import {
   DEFAULT_CONFIG,
@@ -201,6 +202,12 @@ const resolveRequestConfig = (
 
   return resolveDefaultConfig(apiKey, serviceKey, endpointKey, pathParams);
 };
+
+export type RequestSender = <TOutput = void>(
+  apiKey: string,
+  config: Config,
+  options: SendRequestOptions<TOutput>,
+) => Promise<TOutput>;
 
 const sendRequest = async <TOutput = void>(
   apiKey: string,
@@ -631,5 +638,7 @@ export const createClient = (apiKey: string, config?: Config) => {
     instruct: createInstructApi(apiKey, finalConfig),
     datasets: createDatasetsApi(apiKey, finalConfig),
     finetuning: createFinetuningApi(apiKey, finalConfig),
+    model: (modelId: string, method?: string) =>
+      createOpenModelApi(sendRequest, apiKey, finalConfig, modelId, method),
   };
 };

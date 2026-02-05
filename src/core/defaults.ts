@@ -21,6 +21,8 @@ export const DEFAULT_ENDPOINTS: Required<EndpointConfig> = {
   finetuningTrainingsStop: '/trainings/:id/stop',
   finetuningTrainingsEvents: '/trainings/:id/events',
   finetuningTrainingsMetrics: '/trainings/:id/metrics/:metric',
+  modelInference: '/inference/:modelId',
+  modelInferenceMethod: '/inference/:modelId/:method',
 } as const;
 
 export const DEFAULT_SERVERS: Required<ServerConfig> = {
@@ -29,6 +31,7 @@ export const DEFAULT_SERVERS: Required<ServerConfig> = {
   instruct: 'https://api.knowledgator.com',
   datasets: 'https://api.knowledgator.com',
   finetuning: 'https://api.knowledgator.com',
+  inference: 'https://api.knowledgator.com',
 } as const;
 
 export const getDefaultHeaders = (apiKey: string): Record<string, string> => ({
