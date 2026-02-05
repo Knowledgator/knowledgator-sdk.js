@@ -1,4 +1,8 @@
-import { ApiKeyRequiredError, CustomProviderMissingConfigError } from '../../client/errors';
+import {
+  ApiKeyRequiredError,
+  CustomProviderMissingConfigError,
+  RapidApiNotSupportedError,
+} from '../../client/errors';
 import { createHttpClient, HttpOptions } from '../../client/http';
 import { createClient } from '../../core/core';
 import { DEFAULT_CONFIG, DEFAULT_SERVERS, getDefaultHeaders } from '../../core/defaults';
@@ -154,7 +158,7 @@ describe('Datasets API', () => {
       get: jest.fn().mockResolvedValue(mockResponse),
       post: jest.fn().mockResolvedValue(mockResponse),
       patch: jest.fn().mockResolvedValue(mockResponse),
-      delete: jest.fn().mockResolvedValue(undefined),
+      delete: jest.fn().mockResolvedValue({ status: 204 }),
     };
     mockCreateHttpClient.mockReturnValue(
       mockHttpClient as unknown as ReturnType<typeof createHttpClient>,
@@ -194,7 +198,9 @@ describe('Datasets API', () => {
       const result = await client.datasets.list(listDatasetsRequest);
 
       expect(mockValidateListDatasetsRequest).toHaveBeenCalledWith(listDatasetsRequest);
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/datasets?offset=0&limit=10');
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/datasets', {
+        params: { offset: 0, limit: 10 },
+      });
       expect(mockValidateListDatasetsResults).toHaveBeenCalledWith(listDatasetsResults);
       expect(result).toBe(listDatasetsResults);
     });
@@ -206,7 +212,9 @@ describe('Datasets API', () => {
 
       const result = await client.datasets.list();
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/datasets');
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/datasets', {
+        params: {},
+      });
       expect(result).toBe(listDatasetsResults);
     });
 
@@ -225,9 +233,10 @@ describe('Datasets API', () => {
 
       await client.datasets.list(requestWithFilters);
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith(
-        '/datasets?offset=0&limit=10&name=test&type=ner',
-      );
+      // Note: null/undefined filtering is now handled by the http client's buildUrl
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/datasets', {
+        params: requestWithFilters,
+      });
     });
   });
 
@@ -279,7 +288,7 @@ describe('Datasets API', () => {
 
       const result = await client.datasets.get('dataset-123');
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/datasets/dataset-123');
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/datasets/dataset-123', {});
       expect(mockValidateDataset).toHaveBeenCalledWith(dataset);
       expect(result).toBe(dataset);
     });
@@ -304,7 +313,7 @@ describe('Datasets API', () => {
 
       await client.datasets.delete('dataset-123');
 
-      expect(mockHttpClient.delete).toHaveBeenCalledWith('/datasets/dataset-123');
+      expect(mockHttpClient.delete).toHaveBeenCalledWith('/datasets/dataset-123', {});
     });
   });
 
@@ -337,7 +346,9 @@ describe('Datasets API', () => {
       const result = await client.datasets.listFormats(listFormatsRequest);
 
       expect(mockValidateListFormatsRequest).toHaveBeenCalledWith(listFormatsRequest);
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/files/formats/datasets?offset=0&limit=100');
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/files/formats/datasets', {
+        params: { offset: 0, limit: 100 },
+      });
       expect(mockValidateListFormatsResults).toHaveBeenCalledWith(listFormatsResults);
       expect(result).toBe(listFormatsResults);
     });
@@ -381,28 +392,12 @@ describe('Datasets API', () => {
         await expect(client.datasets.list()).rejects.toThrow(ApiKeyRequiredError);
       });
 
-      it('should fallback to default servers/headers because datasets skips RapidAPI', async () => {
+      it('should throw RapidApiNotSupportedError because datasets is not supported by RapidAPI', async () => {
         const client = createClient('apiKey', {
           provider: 'rapidapi',
         });
-        mockResponse.json.mockResolvedValue(listDatasetsResults);
 
-        await client.datasets.list();
-
-        expect(mockCreateHttpClient).toHaveBeenCalledWith({
-          baseUrl: DEFAULT_SERVERS.datasets,
-          baseHeaders: getDefaultHeaders('apiKey'),
-          timeout: DEFAULT_CONFIG.timeout,
-          retryPolicy: DEFAULT_CONFIG.retryPolicy,
-          requestInterceptor: DEFAULT_CONFIG.requestInterceptor,
-          responseInterceptor: DEFAULT_CONFIG.responseInterceptor,
-          logger: expect.objectContaining({
-            debug: expect.any(Function),
-            info: expect.any(Function),
-            warn: expect.any(Function),
-            error: expect.any(Function),
-          }),
-        });
+        await expect(client.datasets.list()).rejects.toThrow(RapidApiNotSupportedError);
       });
     });
 
@@ -463,7 +458,9 @@ describe('Datasets API', () => {
             error: expect.any(Function),
           }),
         });
-        expect(mockHttpClient.get).toHaveBeenCalledWith('/custom-datasets?offset=0&limit=10');
+        expect(mockHttpClient.get).toHaveBeenCalledWith('/custom-datasets', {
+          params: { offset: 0, limit: 10 },
+        });
       });
     });
   });

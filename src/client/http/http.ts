@@ -227,8 +227,8 @@ export const createHttpClient = (config: HttpConfig) => {
     get: (path?: string, options?: HttpOptions) => request('GET', path, options),
     post: (path?: string, options?: HttpOptions) => request('POST', path, options),
     put: (path?: string, options?: HttpOptions) => request('PUT', path, options),
-    delete: (path?: string, options?: HttpOptions) => request('DELETE', path, options),
     patch: (path?: string, options?: HttpOptions) => request('PATCH', path, options),
+    delete: (path?: string, options?: HttpOptions) => request('DELETE', path, options),
     head: (path?: string, options?: Omit<HttpOptions, 'body'>) => request('HEAD', path, options),
     options: (path?: string, options?: Omit<HttpOptions, 'body'>) =>
       request('OPTIONS', path, options),

@@ -1,6 +1,22 @@
 import type { HttpConfig } from '../client/http/types';
 import type { Logger } from '../client/logger/types';
 
+export interface RequestConfig {
+  baseUrl: string;
+  endpoint: string;
+  baseHeaders: Record<string, string> | undefined;
+}
+
+export interface SendRequestOptions<TOutput> {
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS';
+  serviceKey: keyof ServerConfig;
+  endpointKey: keyof EndpointConfig;
+  pathParams?: Record<string, string>;
+  queryParams?: Record<string, unknown>;
+  body?: { type: 'json'; data: unknown } | { type: 'formData'; data: FormData };
+  responseValidator?: (data: unknown) => TOutput;
+}
+
 export interface ServerConfig {
   readonly comprehend?: string;
   readonly extract?: string;
@@ -41,6 +57,5 @@ export type Config = (
 ) & {
   readonly validateResponses?: boolean;
   readonly debug?: boolean;
-  readonly disableRapidApi?: boolean;
   readonly logger?: Logger;
 } & HttpConfig;

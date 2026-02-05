@@ -1,16 +1,15 @@
 import * as v from 'valibot';
 
-import { ServiceTypeEnum, type ServiceType } from '../core/enums';
+import { ServiceTypeEnum } from '../common';
+
+const DATASET_NAME_REGEX = /^[a-zA-Z0-9- .()]+$/;
 
 // Enums
-export { ServiceTypeEnum, type ServiceType };
 export const DatasetFormatEnum = v.picklist(['jsonl', 'csv', 'parquet', 'json']);
 export const DatasetStatusEnum = v.picklist(['pending', 'processing', 'ready', 'failed']);
 
 export type DatasetFormat = v.InferInput<typeof DatasetFormatEnum>;
 export type DatasetStatus = v.InferInput<typeof DatasetStatusEnum>;
-
-const DATASET_NAME_REGEX = /^[a-zA-Z0-9- .()]+$/;
 
 // Request schemas
 const ListDatasetsRequestSchema = v.object({
@@ -27,7 +26,7 @@ const CreateDatasetRequestSchema = v.object({
   type: ServiceTypeEnum,
   format: DatasetFormatEnum,
   description: v.optional(v.string()),
-  file: v.optional(v.instance(File)),
+  file: v.optional(v.instance(Blob)),
 });
 
 const UpdateDatasetRequestSchema = v.object({
@@ -38,7 +37,7 @@ const UpdateDatasetRequestSchema = v.object({
 });
 
 const UploadDatasetRequestSchema = v.object({
-  file: v.instance(File),
+  file: v.instance(Blob),
 });
 
 const ListFormatsRequestSchema = v.object({

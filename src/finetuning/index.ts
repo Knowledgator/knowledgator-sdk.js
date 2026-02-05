@@ -1,5 +1,4 @@
 export {
-  type ServiceType,
   type TrainingStatus,
   type CreateBaseModelRequest,
   type ListModelsRequest,
@@ -7,7 +6,6 @@ export {
   type ListTrainingsRequest,
   type ListEventsRequest,
   type GetMetricsRequest,
-  ServiceTypeEnum,
   TrainingStatusEnum,
   validateCreateBaseModelRequest,
   validateListModelsRequest,
