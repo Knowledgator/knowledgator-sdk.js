@@ -22,8 +22,9 @@ The Knowledgator TypeScript SDK provides access to the Knowledgator APIs for zer
 
 ### Available Services
 
-- `Datasets`: Manage datasets for NER, text classification, and relation extraction.
+- `Datasets`: Manage datasets and raw data for NER, text classification, and relation extraction.
 - `Fine-tuning`: Fine-tune models with your own datasets for improved performance.
+- `Open Models`: Access finetuned or custom models using dynamic identifiers.
 
 ## Documentation
 
@@ -109,7 +110,9 @@ console.log(result); // Outputs ComprehendResults with classifications
 - [Summarization](#summarization)
 - [Structured Extraction (Instruct)](#structured-extraction-instruct)
 - [Dataset Management](#dataset-management)
+- [Raw Data Management](#raw-data-management)
 - [Fine-tuning](#fine-tuning)
+- [Open Models](#open-models)
 - [Configuration Options](#configuration-options)
 - [RapidAPI Integration](#rapidapi-integration)
 - [Available Resources and Operations](#available-resources-and-operations)
@@ -252,6 +255,30 @@ const result = await client.datasets.upload('dataset-id', { file });
 console.log(result); // Outputs DatasetCreationResults
 ```
 
+## Raw Data Management
+
+Raw data entries can be managed similarly to datasets using the `datasets` API.
+
+### List Raw Data
+
+```typescript
+const result = await client.datasets.listData({ limit: 10 });
+console.log(result); // Outputs ListDataResults
+```
+
+### Create Raw Data
+
+```typescript
+const file = readFileSync('raw_data.jsonl');
+const result = await client.datasets.createData({
+  name: 'My Raw Data',
+  type: 'ner',
+  format: 'jsonl',
+  file,
+});
+console.log(result);
+```
+
 ## Fine-tuning
 
 Fine-tune models with your own datasets.
@@ -313,6 +340,28 @@ const result = await client.finetuning.getMetrics('training-id', {
 });
 
 console.log(result); // Outputs ListMetricsResults
+
+## Open Models
+
+Interact with custom or finetuned models using dynamic model identifiers.
+
+```typescript
+import { createClient } from '@knowledgator/typescript-sdk';
+
+const client = createClient('your-api-key-here');
+
+// Initialize a model client
+const model = client.model('your-model-id');
+
+// Generic prediction
+const response = await model.predict({ input: 'text to process' });
+
+// Shorthand for method-based inference
+const generator = client.model('your-model-id', 'generate');
+const result = await generator.predict({ prompt: 'Tell me a story.' });
+
+// Explicitly call a specific method
+const summary = await generator.call('summarize', { text: '...' });
 ```
 
 ## Configuration Options
