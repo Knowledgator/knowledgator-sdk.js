@@ -205,7 +205,11 @@ const sendRequest = async <TOutput = void>(
   );
 
   const headers =
-    body?.type === 'formData' ? omitHeaders(baseHeaders, ['Content-Type']) : baseHeaders;
+    (body?.type === 'formData' ? omitHeaders(baseHeaders, ['Content-Type']) : baseHeaders) || {};
+
+  if (options.headers) {
+    Object.assign(headers, options.headers);
+  }
 
   const httpClient = createHttpClient({
     baseUrl,
@@ -304,6 +308,7 @@ const sendInstructRequest = async <TOutput>(
     serviceKey,
     endpointKey,
     body: { type: 'formData', data: formData },
+    headers: data.model_id ? { 'Model-Id': data.model_id } : undefined,
     responseValidator: validator,
   });
 };
@@ -315,6 +320,7 @@ const createComprehendApi = (apiKey: string, config: Config) => ({
       serviceKey: 'comprehend',
       endpointKey: 'comprehend',
       body: { type: 'json', data: validateComprehendRequest(request) },
+      headers: request.model_id ? { 'Model-Id': request.model_id } : undefined,
       responseValidator: validateComprehendResults,
     }),
 });
@@ -326,6 +332,7 @@ const createExtractApi = (apiKey: string, config: Config) => ({
       serviceKey: 'extract',
       endpointKey: 'extract',
       body: { type: 'json', data: validateExtractBaseRequest(request) },
+      headers: request.model_id ? { 'Model-Id': request.model_id } : undefined,
       responseValidator: validateExtractBaseResults,
     }),
   relations: async (request: ExtractRelationsRequest): Promise<ExtractRelationsResults> =>
@@ -334,6 +341,7 @@ const createExtractApi = (apiKey: string, config: Config) => ({
       serviceKey: 'extract',
       endpointKey: 'extractRelations',
       body: { type: 'json', data: validateExtractRelationsRequest(request) },
+      headers: request.model_id ? { 'Model-Id': request.model_id } : undefined,
       responseValidator: validateExtractRelationsResults,
     }),
   summary: async (request: ExtractSummaryRequest): Promise<ExtractSummaryResults> =>
@@ -342,6 +350,7 @@ const createExtractApi = (apiKey: string, config: Config) => ({
       serviceKey: 'extract',
       endpointKey: 'extractSummary',
       body: { type: 'json', data: validateExtractSummaryRequest(request) },
+      headers: request.model_id ? { 'Model-Id': request.model_id } : undefined,
       responseValidator: validateExtractSummaryResults,
     }),
 });

@@ -14,6 +14,7 @@ export interface SendRequestOptions<TOutput> {
   pathParams?: Record<string, string>;
   queryParams?: Record<string, unknown>;
   body?: { type: 'json'; data: unknown } | { type: 'formData'; data: FormData };
+  headers?: Record<string, string>;
   responseValidator?: (data: unknown) => TOutput;
 }
 

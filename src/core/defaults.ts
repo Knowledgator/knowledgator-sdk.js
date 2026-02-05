@@ -1,11 +1,11 @@
 import type { Config, EndpointConfig, ServerConfig } from './types';
 
 export const DEFAULT_ENDPOINTS: Required<EndpointConfig> = {
-  comprehend: '/comprehend',
-  extract: '/extract',
-  extractRelations: '/extract/relations',
-  extractSummary: '/extract/summary',
-  instruct: '/instruct',
+  comprehend: '/inference/comprehend',
+  extract: '/inference/extract',
+  extractRelations: '/inference/extract/relations',
+  extractSummary: '/inference/extract/summary',
+  instruct: '/inference/instruct',
   datasets: '/datasets',
   datasetsById: '/datasets/:id',
   datasetsUpload: '/datasets/:id/files/upload',
