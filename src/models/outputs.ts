@@ -62,3 +62,13 @@ export const validateExtractRelationsResults = (data: unknown): ExtractRelations
 
 export const validateExtractSummaryResults = (data: unknown): ExtractSummaryResults =>
   v.parse(ExtractSummaryResultsSchema, data);
+
+const InstructItResultsSchema = v.object({
+  outputs: v.union([v.string(), v.record(v.string(), v.any()), v.array(v.any())]),
+  parsed: v.optional(v.boolean()),
+});
+
+export type InstructItResults = v.InferOutput<typeof InstructItResultsSchema>;
+
+export const validateInstructItResults = (data: unknown): InstructItResults =>
+  v.parse(InstructItResultsSchema, data);

@@ -59,3 +59,28 @@ export const validateExtractRelationsRequest = (data: unknown): ExtractRelations
 
 export const validateExtractSummaryRequest = (data: unknown): ExtractSummaryRequest =>
   v.parse(ExtractSummaryRequestSchema, data);
+
+const FileMetadataSchema = v.object({
+  name: v.pipe(v.string(), v.minLength(1)),
+  content: v.optional(v.instance(Uint8Array)),
+});
+
+/**
+ * Metadata for a file reference, optionally with content.
+ *
+ * When content is provided, it will be transmitted as a file part
+ * in the multipart/form-data request.
+ */
+export type FileMetadata = v.InferInput<typeof FileMetadataSchema>;
+
+const InstructItRequestSchema = v.object({
+  text: v.pipe(v.string(), v.minLength(1)),
+  template: v.optional(v.string()),
+  files: v.optional(v.array(FileMetadataSchema)),
+  output_type: v.optional(v.string()),
+});
+
+export type InstructItRequest = v.InferInput<typeof InstructItRequestSchema>;
+
+export const validateInstructItRequest = (data: unknown): InstructItRequest =>
+  v.parse(InstructItRequestSchema, data);

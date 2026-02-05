@@ -3,18 +3,26 @@ export {
   type ExtractBaseRequest,
   type ExtractRelationsRequest,
   type ExtractSummaryRequest,
+  type InstructItRequest,
+  type FileMetadata,
   validateComprehendRequest,
   validateExtractBaseRequest,
   validateExtractRelationsRequest,
   validateExtractSummaryRequest,
+  validateInstructItRequest,
 } from './inputs';
 export {
   type ComprehendResults,
   type ExtractBaseResults,
   type ExtractRelationsResults,
   type ExtractSummaryResults,
+  type InstructItResults,
   validateComprehendResults,
   validateExtractBaseResults,
   validateExtractRelationsResults,
   validateExtractSummaryResults,
+  validateInstructItResults,
 } from './outputs';
+
+// Re-export datasets types for convenience
+export * from '../datasets';

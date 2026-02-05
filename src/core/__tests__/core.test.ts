@@ -10,10 +10,13 @@ import {
   type ExtractBaseRequest,
   type ExtractRelationsRequest,
   type ExtractSummaryRequest,
+  type InstructItRequest,
+  type FileMetadata,
   validateComprehendRequest,
   validateExtractBaseRequest,
   validateExtractRelationsRequest,
   validateExtractSummaryRequest,
+  validateInstructItRequest,
 } from '../../models/inputs';
 import {
   validateExtractBaseResults,
@@ -24,6 +27,8 @@ import {
   type ExtractBaseResults,
   type ExtractRelationsResults,
   type ExtractSummaryResults,
+  type InstructItResults,
+  validateInstructItResults,
 } from '../../models/outputs';
 import { createClient } from '../core';
 import {
@@ -36,7 +41,17 @@ import {
 import type { EndpointConfig, ServerConfig } from '../types';
 
 jest.mock('../../client/http');
-jest.mock('../../models/inputs');
+jest.mock('../../models/inputs', () => {
+  const actual = jest.requireActual('../../models/inputs');
+  return {
+    ...actual,
+    validateComprehendRequest: jest.fn(),
+    validateExtractBaseRequest: jest.fn(),
+    validateExtractRelationsRequest: jest.fn(),
+    validateExtractSummaryRequest: jest.fn(),
+    validateInstructItRequest: jest.fn(),
+  };
+});
 jest.mock('../../models/outputs');
 
 const comprehendRequest: ComprehendRequest = {
@@ -54,6 +69,9 @@ const extractRelationsRequest: ExtractRelationsRequest = {
 };
 const extractSummaryRequest: ExtractSummaryRequest = {
   text: '',
+};
+const instructItRequest: InstructItRequest = {
+  text: 'Summarize this policy in 3 bullet points.',
 };
 const comprehendResults: ComprehendResults = {
   results: [],
@@ -83,6 +101,9 @@ const extractSummaryResults: ExtractSummaryResults = {
   threshold: 1,
   status: '',
 };
+const instructItResults: InstructItResults = {
+  outputs: { summary: 'Test summary', key_points: [] },
+};
 
 const mockValidateComprehendRequest = validateComprehendRequest as jest.MockedFunction<
   typeof validateComprehendRequest
@@ -96,6 +117,9 @@ const mockValidateExtractRelationsRequest = validateExtractRelationsRequest as j
 const mockValidateExtractSummaryRequest = validateExtractSummaryRequest as jest.MockedFunction<
   typeof validateExtractSummaryRequest
 >;
+const mockValidateInstructItRequest = validateInstructItRequest as jest.MockedFunction<
+  typeof validateInstructItRequest
+>;
 const mockValidateComprehendResults = validateComprehendResults as jest.MockedFunction<
   typeof validateComprehendResults
 >;
@@ -107,6 +131,9 @@ const mockValidateExtractRelationsResults = validateExtractRelationsResults as j
 >;
 const mockValidateExtractSummaryResults = validateExtractSummaryResults as jest.MockedFunction<
   typeof validateExtractSummaryResults
+>;
+const mockValidateInstructItResults = validateInstructItResults as jest.MockedFunction<
+  typeof validateInstructItResults
 >;
 
 type MockResponse = {
@@ -138,10 +165,12 @@ describe(createClient.name, () => {
     mockValidateExtractBaseRequest.mockImplementation(() => extractBaseRequest);
     mockValidateExtractRelationsRequest.mockImplementation(() => extractRelationsRequest);
     mockValidateExtractSummaryRequest.mockImplementation(() => extractSummaryRequest);
+    mockValidateInstructItRequest.mockImplementation(() => instructItRequest);
     mockValidateComprehendResults.mockImplementation(() => comprehendResults);
     mockValidateExtractBaseResults.mockImplementation(() => extractBaseResults);
     mockValidateExtractRelationsResults.mockImplementation(() => extractRelationsResults);
     mockValidateExtractSummaryResults.mockImplementation(() => extractSummaryResults);
+    mockValidateInstructItResults.mockImplementation(() => instructItResults);
   });
 
   describe('client creation', () => {
@@ -150,10 +179,12 @@ describe(createClient.name, () => {
 
       expect(client).toHaveProperty('comprehend');
       expect(client).toHaveProperty('extract');
+      expect(client).toHaveProperty('instruct');
       expect(client.comprehend).toHaveProperty('it');
       expect(client.extract).toHaveProperty('it');
       expect(client.extract).toHaveProperty('relations');
       expect(client.extract).toHaveProperty('summary');
+      expect(client.instruct).toHaveProperty('it');
     });
 
     it('should create client with rapidapi config', () => {
@@ -163,6 +194,7 @@ describe(createClient.name, () => {
 
       expect(client).toHaveProperty('comprehend');
       expect(client).toHaveProperty('extract');
+      expect(client).toHaveProperty('instruct');
     });
 
     it('should create client with custom config', () => {
@@ -186,6 +218,8 @@ describe(createClient.name, () => {
       expect(client.extract).toHaveProperty('it');
       expect(client.extract).toHaveProperty('relations');
       expect(client.extract).toHaveProperty('summary');
+      expect(client).toHaveProperty('instruct');
+      expect(client.instruct).toHaveProperty('it');
     });
   });
 
@@ -391,6 +425,152 @@ describe(createClient.name, () => {
     });
   });
 
+  describe('instruct API', () => {
+    it('should call instruct endpoint with multipart/form-data', async () => {
+      const client = createClient('apiKey');
+      mockResponse.json.mockResolvedValue(instructItResults);
+
+      const result = await client.instruct.it(instructItRequest);
+
+      expect(mockValidateInstructItRequest).toHaveBeenCalledWith(instructItRequest);
+      expect(mockHttpClient.post).toHaveBeenCalledWith('/instruct', {
+        body: expect.any(FormData),
+      });
+
+      // Verify FormData contains the text field
+      const callArgs = mockHttpClient.post.mock.calls[0];
+      const formData = callArgs[1]!.body as FormData;
+      expect(formData.get('text')).toBe('Summarize this policy in 3 bullet points.');
+
+      expect(mockValidateInstructItResults).toHaveBeenCalledWith(instructItResults);
+      expect(result).toBe(instructItResults);
+    });
+
+    it('should handle optional parameters in FormData', async () => {
+      const client = createClient('apiKey');
+      const requestWithOptionals: InstructItRequest = {
+        text: 'Test instruction',
+        template: '{"summary": "", "key_points": []}',
+        files: [{ name: 'file-1' }, { name: 'file-2' }],
+        output_type: 'json',
+      };
+      mockValidateInstructItRequest.mockImplementation(() => requestWithOptionals);
+      mockResponse.json.mockResolvedValue(instructItResults);
+
+      const result = await client.instruct.it(requestWithOptionals);
+
+      expect(mockValidateInstructItRequest).toHaveBeenCalledWith(requestWithOptionals);
+
+      // Verify FormData structure
+      const callArgs = mockHttpClient.post.mock.calls[0];
+      const formData = callArgs[1]!.body as FormData;
+      expect(formData.get('text')).toBe('Test instruction');
+      expect(formData.get('template')).toBe('{"summary": "", "key_points": []}');
+      expect(formData.get('output_type')).toBe('json');
+      expect(formData.get('filesmetadata')).toBe(JSON.stringify(['file-1', 'file-2']));
+
+      expect(result).toBe(instructItResults);
+    });
+
+    it('should handle file references without content', async () => {
+      const client = createClient('apiKey');
+      const files: FileMetadata[] = [{ name: 'file-id-1' }, { name: 'file-id-2' }];
+      const requestWithFiles: InstructItRequest = {
+        text: 'Compare these two documents',
+        files,
+      };
+      mockValidateInstructItRequest.mockImplementation(() => requestWithFiles);
+      mockResponse.json.mockResolvedValue(instructItResults);
+
+      const result = await client.instruct.it(requestWithFiles);
+
+      expect(mockValidateInstructItRequest).toHaveBeenCalledWith(requestWithFiles);
+
+      // Verify FormData includes filesmetadata but no file parts
+      const callArgs = mockHttpClient.post.mock.calls[0];
+      const formData = callArgs[1]!.body as FormData;
+      expect(formData.get('text')).toBe('Compare these two documents');
+      expect(formData.get('filesmetadata')).toBe(JSON.stringify(['file-id-1', 'file-id-2']));
+
+      // Verify no file parts were added (only metadata)
+      expect(formData.getAll('files')).toHaveLength(0);
+
+      expect(result).toBe(instructItResults);
+    });
+
+    it('should send file content as multipart file parts', async () => {
+      const client = createClient('apiKey');
+      const files: FileMetadata[] = [
+        {
+          name: 'document.pdf',
+          content: new Uint8Array([0x50, 0x44, 0x46]), // PDF binary content
+        },
+      ];
+      const requestWithContent: InstructItRequest = {
+        text: 'Process this document',
+        files,
+        output_type: 'list',
+      };
+      mockValidateInstructItRequest.mockImplementation(() => requestWithContent);
+      mockResponse.json.mockResolvedValue(instructItResults);
+
+      const result = await client.instruct.it(requestWithContent);
+
+      // Verify FormData includes filesmetadata and file parts
+      const callArgs = mockHttpClient.post.mock.calls[0];
+      const formData = callArgs[1]!.body as FormData;
+      expect(formData.get('text')).toBe('Process this document');
+      expect(formData.get('output_type')).toBe('list');
+      expect(formData.get('filesmetadata')).toBe(JSON.stringify(['document.pdf']));
+
+      // Verify file content was added as a file part
+      const fileParts = formData.getAll('files');
+      expect(fileParts).toHaveLength(1);
+      expect(fileParts[0]).toBeInstanceOf(Blob);
+
+      expect(result).toBe(instructItResults);
+    });
+
+    it('should handle mixed files with and without content', async () => {
+      const client = createClient('apiKey');
+      const files: FileMetadata[] = [
+        { name: 'doc1.pdf' }, // Reference only
+        {
+          name: 'doc2.docx',
+          content: new Uint8Array([0x44, 0x4f, 0x43]), // DOCX content
+        },
+        { name: 'doc3.txt' }, // Reference only
+      ];
+      const requestWithMixedFiles: InstructItRequest = {
+        text: 'Analyze these documents comprehensively',
+        files,
+        template: '{"analysis": "", "recommendations": []}',
+        output_type: 'json',
+      };
+      mockValidateInstructItRequest.mockImplementation(() => requestWithMixedFiles);
+      mockResponse.json.mockResolvedValue(instructItResults);
+
+      const result = await client.instruct.it(requestWithMixedFiles);
+
+      // Verify FormData includes all file names in filesmetadata
+      const callArgs = mockHttpClient.post.mock.calls[0];
+      const formData = callArgs[1]!.body as FormData;
+      expect(formData.get('text')).toBe('Analyze these documents comprehensively');
+      expect(formData.get('template')).toBe('{"analysis": "", "recommendations": []}');
+      expect(formData.get('output_type')).toBe('json');
+      expect(formData.get('filesmetadata')).toBe(
+        JSON.stringify(['doc1.pdf', 'doc2.docx', 'doc3.txt']),
+      );
+
+      // Verify only one file part was added (doc2.docx has content)
+      const fileParts = formData.getAll('files');
+      expect(fileParts).toHaveLength(1);
+      expect(fileParts[0]).toBeInstanceOf(Blob);
+
+      expect(result).toBe(instructItResults);
+    });
+  });
+
   describe('response validation', () => {
     it('should validate responses when validateResponses is true', async () => {
       const client = createClient('apiKey', {
@@ -528,6 +708,20 @@ describe(createClient.name, () => {
         expect(mockValidateExtractSummaryRequest).toHaveBeenCalledWith({});
         expect(mockHttpClient.post).not.toHaveBeenCalled();
       });
+
+      it('should throw error when instruct request validation fails', async () => {
+        const client = createClient('apiKey');
+        mockValidateInstructItRequest.mockImplementation(() => {
+          throw new Error('Invalid instruct request');
+        });
+
+        await expect(client.instruct.it({} as InstructItRequest)).rejects.toThrow(
+          'Invalid instruct request',
+        );
+
+        expect(mockValidateInstructItRequest).toHaveBeenCalledWith({});
+        expect(mockHttpClient.post).not.toHaveBeenCalled();
+      });
     });
 
     describe('response validation failures', () => {
@@ -593,6 +787,22 @@ describe(createClient.name, () => {
         );
 
         expect(mockValidateExtractSummaryResults).toHaveBeenCalledWith({});
+      });
+
+      it('should throw error when instruct response validation fails', async () => {
+        const client = createClient('apiKey', {
+          validateResponses: true,
+        });
+        mockResponse.json.mockResolvedValue({});
+        mockValidateInstructItResults.mockImplementation(() => {
+          throw new Error('Invalid instruct response');
+        });
+
+        await expect(client.instruct.it(instructItRequest)).rejects.toThrow(
+          'Invalid instruct response',
+        );
+
+        expect(mockValidateInstructItResults).toHaveBeenCalledWith({});
       });
 
       it('should not validate response when validateResponses is false', async () => {
@@ -680,6 +890,166 @@ describe(createClient.name, () => {
           },
         }),
       );
+    });
+  });
+
+  describe('header verification', () => {
+    describe('main server (knowledgator provider)', () => {
+      it('should use KnowledgatorAPI-Key header for comprehend service', async () => {
+        const client = createClient('test-api-key');
+        mockResponse.json.mockResolvedValue(comprehendResults);
+
+        await client.comprehend.it(comprehendRequest);
+
+        expect(mockCreateHttpClient).toHaveBeenCalledWith(
+          expect.objectContaining({
+            baseUrl: DEFAULT_SERVERS.comprehend,
+            baseHeaders: {
+              'Content-Type': 'application/json',
+              'KnowledgatorAPI-Key': 'test-api-key',
+            },
+          }),
+        );
+      });
+
+      it('should use KnowledgatorAPI-Key header for extract service', async () => {
+        const client = createClient('test-api-key');
+        mockResponse.json.mockResolvedValue(extractBaseResults);
+
+        await client.extract.it(extractBaseRequest);
+
+        expect(mockCreateHttpClient).toHaveBeenCalledWith(
+          expect.objectContaining({
+            baseUrl: DEFAULT_SERVERS.extract,
+            baseHeaders: {
+              'Content-Type': 'application/json',
+              'KnowledgatorAPI-Key': 'test-api-key',
+            },
+          }),
+        );
+      });
+
+      it('should use KnowledgatorAPI-Key header for instruct service', async () => {
+        const client = createClient('test-api-key');
+        mockResponse.json.mockResolvedValue(instructItResults);
+
+        await client.instruct.it(instructItRequest);
+
+        expect(mockCreateHttpClient).toHaveBeenCalledWith(
+          expect.objectContaining({
+            baseUrl: DEFAULT_SERVERS.instruct,
+            baseHeaders: {
+              'KnowledgatorAPI-Key': 'test-api-key',
+              // Ensure Content-Type is removed so browser/client can set multipart/form-data boundary
+              'Content-Type': undefined,
+            },
+          }),
+        );
+      });
+    });
+
+    describe('rapidapi provider', () => {
+      it('should use x-rapidapi-key and x-rapidapi-host headers for comprehend service', async () => {
+        const client = createClient('test-rapidapi-key', {
+          provider: 'rapidapi',
+        });
+        mockResponse.json.mockResolvedValue(comprehendResults);
+
+        await client.comprehend.it(comprehendRequest);
+
+        expect(mockCreateHttpClient).toHaveBeenCalledWith(
+          expect.objectContaining({
+            baseUrl: RAPID_API_SERVERS.comprehend,
+            baseHeaders: {
+              'Content-Type': 'application/json',
+              'x-rapidapi-host': 'comprehend-it.p.rapidapi.com',
+              'x-rapidapi-key': 'test-rapidapi-key',
+            },
+          }),
+        );
+      });
+
+      it('should use x-rapidapi-key and x-rapidapi-host headers for extract service', async () => {
+        const client = createClient('test-rapidapi-key', {
+          provider: 'rapidapi',
+        });
+        mockResponse.json.mockResolvedValue(extractBaseResults);
+
+        await client.extract.it(extractBaseRequest);
+
+        expect(mockCreateHttpClient).toHaveBeenCalledWith(
+          expect.objectContaining({
+            baseUrl: RAPID_API_SERVERS.extract,
+            baseHeaders: {
+              'Content-Type': 'application/json',
+              'x-rapidapi-host': 'extract-it.p.rapidapi.com',
+              'x-rapidapi-key': 'test-rapidapi-key',
+            },
+          }),
+        );
+      });
+
+      it('should use x-rapidapi-key and x-rapidapi-host headers for instruct service', async () => {
+        const client = createClient('test-rapidapi-key', {
+          provider: 'rapidapi',
+        });
+        mockResponse.json.mockResolvedValue(instructItResults);
+
+        await client.instruct.it(instructItRequest);
+
+        expect(mockCreateHttpClient).toHaveBeenCalledWith(
+          expect.objectContaining({
+            baseUrl: RAPID_API_SERVERS.instruct,
+            baseHeaders: {
+              'x-rapidapi-host': 'instruct-it.p.rapidapi.com',
+              'x-rapidapi-key': 'test-rapidapi-key',
+              // Ensure Content-Type is removed so browser/client can set multipart/form-data boundary
+              'Content-Type': undefined,
+            },
+          }),
+        );
+      });
+
+      it('should use correct host for each rapidapi service', async () => {
+        const client = createClient('test-rapidapi-key', {
+          provider: 'rapidapi',
+        });
+        mockResponse.json.mockResolvedValue(comprehendResults);
+
+        await client.comprehend.it(comprehendRequest);
+        expect(mockCreateHttpClient).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            baseUrl: 'https://comprehend-it.p.rapidapi.com',
+            baseHeaders: expect.objectContaining({
+              'x-rapidapi-host': 'comprehend-it.p.rapidapi.com',
+            }),
+          }),
+        );
+
+        mockResponse.json.mockResolvedValue(extractBaseResults);
+
+        await client.extract.it(extractBaseRequest);
+        expect(mockCreateHttpClient).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            baseUrl: 'https://extract-it.p.rapidapi.com',
+            baseHeaders: expect.objectContaining({
+              'x-rapidapi-host': 'extract-it.p.rapidapi.com',
+            }),
+          }),
+        );
+
+        mockResponse.json.mockResolvedValue(instructItResults);
+
+        await client.instruct.it(instructItRequest);
+        expect(mockCreateHttpClient).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            baseUrl: 'https://instruct-it.p.rapidapi.com',
+            baseHeaders: expect.objectContaining({
+              'x-rapidapi-host': 'instruct-it.p.rapidapi.com',
+            }),
+          }),
+        );
+      });
     });
   });
 });
