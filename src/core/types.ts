@@ -36,6 +36,9 @@ export interface EndpointConfig {
   readonly datasetsById?: string;
   readonly datasetsUpload?: string;
   readonly datasetsFormats?: string;
+  readonly data?: string;
+  readonly dataById?: string;
+  readonly dataUpload?: string;
   readonly finetuningModels?: string;
   readonly finetuningModelsById?: string;
   readonly finetuningModelsTypes?: string;

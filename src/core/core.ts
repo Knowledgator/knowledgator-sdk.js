@@ -15,19 +15,33 @@ import {
   type UpdateDatasetRequest,
   type UploadDatasetRequest,
   type ListFormatsRequest,
+  type ListDataRequest,
+  type CreateDataRequest,
+  type UpdateDataRequest,
+  type UploadDataRequest,
   type Dataset,
   type ListDatasetsResults,
   type DatasetCreationResults,
   type ListFormatsResults,
+  type Data,
+  type ListDataResults,
+  type DataCreationResults,
   validateListDatasetsRequest,
   validateCreateDatasetRequest,
   validateUpdateDatasetRequest,
   validateUploadDatasetRequest,
   validateListFormatsRequest,
+  validateListDataRequest,
+  validateCreateDataRequest,
+  validateUpdateDataRequest,
+  validateUploadDataRequest,
   validateDataset,
   validateListDatasetsResults,
   validateDatasetCreationResults,
   validateListFormatsResults,
+  validateData,
+  validateListDataResults,
+  validateDataCreationResults,
 } from '../datasets';
 import {
   type CreateBaseModelRequest,
@@ -456,6 +470,46 @@ const createDatasetsApi = (apiKey: string, config: Config) => {
         queryParams: validateListFormatsRequest(request),
         responseValidator: validateListFormatsResults,
       }),
+    listData: async (request: ListDataRequest = {}): Promise<ListDataResults> =>
+      sendRequest(apiKey, config, {
+        method: 'GET',
+        serviceKey: 'datasets',
+        endpointKey: 'data',
+        queryParams: validateListDataRequest(request),
+        responseValidator: validateListDataResults,
+      }),
+    createData: async (request: CreateDataRequest): Promise<DataCreationResults> =>
+      sendDatasetsRequest('data', validateCreateDataRequest(request), validateDataCreationResults),
+    getData: async (dataId: string): Promise<Data> =>
+      sendRequest(apiKey, config, {
+        method: 'GET',
+        serviceKey: 'datasets',
+        endpointKey: 'dataById',
+        pathParams: { id: dataId },
+        responseValidator: validateData,
+      }),
+    updateData: async (dataId: string, request: UpdateDataRequest): Promise<void> =>
+      sendRequest(apiKey, config, {
+        method: 'PATCH',
+        serviceKey: 'datasets',
+        endpointKey: 'dataById',
+        pathParams: { id: dataId },
+        body: { type: 'json', data: validateUpdateDataRequest(request) },
+      }),
+    deleteData: async (dataId: string): Promise<void> =>
+      sendRequest(apiKey, config, {
+        method: 'DELETE',
+        serviceKey: 'datasets',
+        endpointKey: 'dataById',
+        pathParams: { id: dataId },
+      }),
+    uploadData: async (dataId: string, request: UploadDataRequest): Promise<DataCreationResults> =>
+      sendDatasetsRequest(
+        'dataUpload',
+        validateUploadDataRequest(request),
+        validateDataCreationResults,
+        { id: dataId },
+      ),
   };
 };
 
