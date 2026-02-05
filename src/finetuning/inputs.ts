@@ -1,16 +1,17 @@
 import * as v from 'valibot';
 
-import { ServiceTypeEnum, type ServiceType } from '../core/enums';
+import { ServiceTypeEnum } from '../common';
 
-// Enums
-export { ServiceTypeEnum, type ServiceType };
+const BASE_MODEL_NAME_REGEX = /^[a-zA-Z0-9- .()]+$/;
+const ID_REGEX = /^[a-zA-Z0-9-]+$/;
+
 export const TrainingStatusEnum = v.picklist(['active', 'completed', 'stopped', 'failed']);
 
 export type TrainingStatus = v.InferInput<typeof TrainingStatusEnum>;
 
 // Request schemas
 const CreateBaseModelRequestSchema = v.object({
-  name: v.pipe(v.string(), v.minLength(1), v.maxLength(64), v.regex(/^[a-zA-Z0-9- .()]+$/)),
+  name: v.pipe(v.string(), v.minLength(1), v.maxLength(64), v.regex(BASE_MODEL_NAME_REGEX)),
   type: ServiceTypeEnum,
   description: v.optional(v.string()),
 });
@@ -19,15 +20,15 @@ const ListModelsRequestSchema = v.object({
   offset: v.optional(v.pipe(v.number(), v.minValue(0)), 0),
   limit: v.optional(v.pipe(v.number(), v.minValue(0), v.maxValue(10000)), 100),
   name: v.optional(
-    v.nullable(v.pipe(v.string(), v.minLength(1), v.maxLength(64), v.regex(/^[a-zA-Z0-9- .()]+$/))),
+    v.nullable(v.pipe(v.string(), v.minLength(1), v.maxLength(64), v.regex(BASE_MODEL_NAME_REGEX))),
   ),
   type: v.optional(v.nullable(ServiceTypeEnum)),
   include_base: v.optional(v.boolean(), true),
 });
 
 const StartTrainingRequestSchema = v.object({
-  model_id: v.pipe(v.string(), v.minLength(2), v.maxLength(64), v.regex(/^[a-zA-Z0-9-]+$/)),
-  dataset_id: v.pipe(v.string(), v.minLength(2), v.maxLength(64), v.regex(/^[a-zA-Z0-9-]+$/)),
+  model_id: v.pipe(v.string(), v.minLength(2), v.maxLength(64), v.regex(ID_REGEX)),
+  dataset_id: v.pipe(v.string(), v.minLength(2), v.maxLength(64), v.regex(ID_REGEX)),
   hyperparameters: v.optional(v.record(v.string(), v.any())),
 });
 

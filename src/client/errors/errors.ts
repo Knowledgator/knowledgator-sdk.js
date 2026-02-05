@@ -116,6 +116,27 @@ export class CustomProviderMissingConfigError extends Error {
   }
 }
 
+export class CustomProviderMissingServerError extends Error {
+  constructor(public readonly serviceKey: string) {
+    super(`Missing server configuration for service: ${serviceKey}`);
+    this.name = 'CustomProviderMissingServerError';
+  }
+}
+
+export class CustomProviderMissingEndpointError extends Error {
+  constructor(public readonly endpointKey: string) {
+    super(`Missing endpoint configuration for: ${endpointKey}`);
+    this.name = 'CustomProviderMissingEndpointError';
+  }
+}
+
+export class RapidApiNotSupportedError extends Error {
+  constructor(public readonly serviceKey: string) {
+    super(`RapidAPI is not supported for service: ${serviceKey}`);
+    this.name = 'RapidApiNotSupportedError';
+  }
+}
+
 export class JsonParseError extends Error {
   constructor(
     public readonly originalError: Error,

@@ -1,5 +1,4 @@
 export {
-  type ServiceType,
   type DatasetFormat,
   type DatasetStatus,
   type ListDatasetsRequest,
@@ -7,7 +6,6 @@ export {
   type UpdateDatasetRequest,
   type UploadDatasetRequest,
   type ListFormatsRequest,
-  ServiceTypeEnum,
   DatasetFormatEnum,
   DatasetStatusEnum,
   validateListDatasetsRequest,
