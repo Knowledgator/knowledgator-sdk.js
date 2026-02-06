@@ -232,6 +232,50 @@ const sendRequest = async <TOutput = void>(
     Object.assign(headers, options.headers);
   }
 
+  return {
+    baseUrl: DEFAULT_SERVERS[serviceKey],
+    endpoint: replacePathParams(DEFAULT_ENDPOINTS[endpointKey], pathParams),
+    baseHeaders: getDefaultHeaders(apiKey),
+  };
+};
+
+const resolveRequestConfig = (
+  apiKey: string,
+  config: Config,
+  serviceKey: keyof ServerConfig,
+  endpointKey: keyof EndpointConfig,
+  pathParams?: Record<string, string>,
+): RequestConfig => {
+  if (config.provider === 'rapidapi') {
+    return resolveRapidApiConfig(apiKey, serviceKey, endpointKey, pathParams);
+  }
+
+  if (config.provider === 'custom') {
+    return resolveCustomConfig(config, serviceKey, endpointKey, pathParams);
+  }
+
+  return resolveDefaultConfig(apiKey, serviceKey, endpointKey, pathParams);
+};
+
+const sendRequest = async <TOutput = void>(
+  apiKey: string,
+  config: Config,
+  options: SendRequestOptions<TOutput>,
+): Promise<TOutput> => {
+  const { method, serviceKey, endpointKey, pathParams, queryParams, body, responseValidator } =
+    options;
+
+  const { baseUrl, endpoint, baseHeaders } = resolveRequestConfig(
+    apiKey,
+    config,
+    serviceKey,
+    endpointKey,
+    pathParams,
+  );
+
+  const headers =
+    body?.type === 'formData' ? omitHeaders(baseHeaders, ['Content-Type']) : baseHeaders;
+
   const httpClient = createHttpClient({
     baseUrl,
     baseHeaders: headers,
