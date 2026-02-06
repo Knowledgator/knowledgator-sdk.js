@@ -54,13 +54,13 @@ export interface EndpointConfig {
 
 export type Config = (
   | {
-    readonly provider?: 'knowledgator' | 'rapidapi';
-  }
+      readonly provider?: 'knowledgator' | 'rapidapi';
+    }
   | {
-    readonly provider: 'custom';
-    readonly servers: ServerConfig;
-    readonly endpoints: EndpointConfig;
-  }
+      readonly provider: 'custom';
+      readonly servers: ServerConfig;
+      readonly endpoints: EndpointConfig;
+    }
 ) & {
   readonly validateResponses?: boolean;
   readonly debug?: boolean;
