@@ -25,7 +25,6 @@ export const createOpenModelApi = (
       endpointKey: 'modelInferenceMethod',
       pathParams: { modelId, method },
       body: { type: 'json', data: body },
-      responseValidator: (data: unknown) => data,
     });
 
   return {
@@ -39,7 +38,6 @@ export const createOpenModelApi = (
         endpointKey: 'modelInference',
         pathParams: { modelId },
         body: { type: 'json', data: body },
-        responseValidator: (data: unknown) => data,
       });
     },
     call,
