@@ -26,3 +26,7 @@ export const omitHeaders = (
     Object.entries(headers).filter(([key]) => !lowerCaseValuesToOmit.has(key.toLowerCase())),
   );
 };
+
+export const getModelIdHeader = (modelId?: string): Record<string, string> | undefined => {
+  return modelId ? { 'KnowledgatorAPI-Model-ID': modelId } : undefined;
+};
