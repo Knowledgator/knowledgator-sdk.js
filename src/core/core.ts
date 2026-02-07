@@ -107,13 +107,7 @@ import {
   getRapidApiHeaders,
   RAPID_API_SERVERS,
 } from './defaults';
-import type {
-  EndpointConfig,
-  Config,
-  ServerConfig,
-  RequestConfig,
-  SendRequestOptions,
-} from './types';
+import type { EndpointConfig, Config, ServerConfig, RequestConfig, SendRequest } from './types';
 import { omitHeaders, replacePathParams, getModelIdHeader } from './utils';
 
 const resolveRapidApiConfig = (
@@ -203,17 +197,7 @@ const resolveRequestConfig = (
   return resolveDefaultConfig(apiKey, serviceKey, endpointKey, pathParams);
 };
 
-export type RequestSender = <TOutput = void>(
-  apiKey: string,
-  config: Config,
-  options: SendRequestOptions<TOutput>,
-) => Promise<TOutput>;
-
-const sendRequest = async <TOutput = void>(
-  apiKey: string,
-  config: Config,
-  options: SendRequestOptions<TOutput>,
-): Promise<TOutput> => {
+const sendRequest: SendRequest = async <TOutput>(apiKey, config, options) => {
   const { method, serviceKey, endpointKey, pathParams, queryParams, body, responseValidator } =
     options;
 

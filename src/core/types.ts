@@ -7,7 +7,7 @@ export interface RequestConfig {
   baseHeaders: Record<string, string> | undefined;
 }
 
-export interface SendRequestOptions<TOutput> {
+interface SendRequestOptions<TOutput> {
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS';
   serviceKey: keyof ServerConfig;
   endpointKey: keyof EndpointConfig;
@@ -17,6 +17,12 @@ export interface SendRequestOptions<TOutput> {
   headers?: Record<string, string>;
   responseValidator?: (data: unknown) => TOutput;
 }
+
+export type SendRequest = <TOutput = void>(
+  apiKey: string,
+  config: Config,
+  options: SendRequestOptions<TOutput>,
+) => Promise<TOutput>;
 
 export interface ServerConfig {
   readonly comprehend?: string;

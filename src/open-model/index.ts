@@ -1,5 +1,4 @@
-import type { RequestSender } from '../core/core';
-import type { ServerConfig, Config } from '../core/types';
+import type { SendRequest, ServerConfig, Config } from '../core/types';
 
 export interface OpenModel {
   predict: (body: Record<string, unknown>) => Promise<unknown>;
@@ -7,7 +6,7 @@ export interface OpenModel {
 }
 
 export const createOpenModelApi = (
-  sendRequest: RequestSender,
+  sendRequest: SendRequest,
   apiKey: string,
   config: Config,
   modelId: string,
