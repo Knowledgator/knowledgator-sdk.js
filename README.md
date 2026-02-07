@@ -340,6 +340,7 @@ const result = await client.finetuning.getMetrics('training-id', {
 });
 
 console.log(result); // Outputs ListMetricsResults
+```
 
 ## Open Models
 
