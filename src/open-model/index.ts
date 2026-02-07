@@ -33,7 +33,6 @@ export const createOpenModelApi = (
       if (defaultMethod) {
         return call(defaultMethod, body);
       }
-
       return sendRequest(apiKey, config, {
         method: 'POST',
         serviceKey,
@@ -43,7 +42,6 @@ export const createOpenModelApi = (
         responseValidator: (data: unknown) => data,
       });
     },
-
     call,
   };
 };
