@@ -10,6 +10,7 @@ const ComprehendRequestSchema = v.object({
   labels: v.pipe(v.array(v.string()), v.minLength(1)),
   threshold: v.optional(v.pipe(v.number(), v.minValue(0.0), v.maxValue(1.0)), 0.5),
   examples: v.optional(v.array(ComprehendRequestExampleSchema)),
+  model_id: v.optional(v.string()),
 });
 
 const ExtractBaseRequestSchema = v.object({
@@ -17,6 +18,7 @@ const ExtractBaseRequestSchema = v.object({
   labels: v.pipe(v.array(v.string()), v.minLength(1)),
   threshold: v.optional(v.pipe(v.number(), v.minValue(0.0), v.maxValue(1.0)), 0.5),
   prompt: v.optional(v.string()),
+  model_id: v.optional(v.string()),
 });
 
 const ExtractRelationsRequestRuleSchema = v.object({
@@ -32,12 +34,14 @@ const ExtractRelationsRequestSchema = v.object({
   threshold: v.optional(v.pipe(v.number(), v.minValue(0.0), v.maxValue(1.0)), 0.5),
   rules: v.optional(v.array(ExtractRelationsRequestRuleSchema)),
   prompt: v.optional(v.string()),
+  model_id: v.optional(v.string()),
 });
 
 const ExtractSummaryRequestSchema = v.object({
   text: v.pipe(v.string(), v.minLength(1)),
   threshold: v.optional(v.pipe(v.number(), v.minValue(0.0), v.maxValue(1.0)), 0.5),
   prompt: v.optional(v.string()),
+  model_id: v.optional(v.string()),
 });
 
 export type ComprehendRequest = v.InferInput<typeof ComprehendRequestSchema>;
@@ -78,6 +82,7 @@ const InstructItRequestSchema = v.object({
   template: v.optional(v.string()),
   files: v.optional(v.array(FileMetadataSchema)),
   output_type: v.optional(v.string()),
+  model_id: v.optional(v.string()),
 });
 
 export type InstructItRequest = v.InferInput<typeof InstructItRequestSchema>;

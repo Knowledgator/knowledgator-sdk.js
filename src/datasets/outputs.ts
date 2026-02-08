@@ -42,11 +42,38 @@ const ListFormatsResultsSchema = v.object({
   limit: v.number(),
 });
 
+const DataSchema = v.object({
+  id: v.string(),
+  name: v.string(),
+  type: v.string(),
+  format: v.string(),
+  description: v.optional(v.string()),
+  created_at: v.string(),
+  updated_at: v.string(),
+  file_count: v.optional(v.number()),
+  total_size: v.optional(v.number()),
+});
+
+const ListDataResultsSchema = v.object({
+  data: v.array(DataSchema),
+  total: v.number(),
+  offset: v.number(),
+  limit: v.number(),
+});
+
+const DataCreationResultsSchema = v.object({
+  id: v.string(),
+  status: v.optional(v.string()),
+});
+
 // Response types
 export type Dataset = v.InferOutput<typeof DatasetSchema>;
 export type ListDatasetsResults = v.InferOutput<typeof ListDatasetsResultsSchema>;
 export type DatasetCreationResults = v.InferOutput<typeof DatasetCreationResultsSchema>;
 export type ListFormatsResults = v.InferOutput<typeof ListFormatsResultsSchema>;
+export type Data = v.InferOutput<typeof DataSchema>;
+export type ListDataResults = v.InferOutput<typeof ListDataResultsSchema>;
+export type DataCreationResults = v.InferOutput<typeof DataCreationResultsSchema>;
 
 // Validators
 export const validateDataset = (data: unknown): Dataset => v.parse(DatasetSchema, data);
@@ -59,3 +86,11 @@ export const validateDatasetCreationResults = (data: unknown): DatasetCreationRe
 
 export const validateListFormatsResults = (data: unknown): ListFormatsResults =>
   v.parse(ListFormatsResultsSchema, data);
+
+export const validateData = (data: unknown): Data => v.parse(DataSchema, data);
+
+export const validateListDataResults = (data: unknown): ListDataResults =>
+  v.parse(ListDataResultsSchema, data);
+
+export const validateDataCreationResults = (data: unknown): DataCreationResults =>
+  v.parse(DataCreationResultsSchema, data);

@@ -15,19 +15,33 @@ import {
   type UpdateDatasetRequest,
   type UploadDatasetRequest,
   type ListFormatsRequest,
+  type ListDataRequest,
+  type CreateDataRequest,
+  type UpdateDataRequest,
+  type UploadDataRequest,
   type Dataset,
   type ListDatasetsResults,
   type DatasetCreationResults,
   type ListFormatsResults,
+  type Data,
+  type ListDataResults,
+  type DataCreationResults,
   validateListDatasetsRequest,
   validateCreateDatasetRequest,
   validateUpdateDatasetRequest,
   validateUploadDatasetRequest,
   validateListFormatsRequest,
+  validateListDataRequest,
+  validateCreateDataRequest,
+  validateUpdateDataRequest,
+  validateUploadDataRequest,
   validateDataset,
   validateListDatasetsResults,
   validateDatasetCreationResults,
   validateListFormatsResults,
+  validateData,
+  validateListDataResults,
+  validateDataCreationResults,
 } from '../datasets';
 import {
   type CreateBaseModelRequest,
@@ -83,6 +97,7 @@ import {
   type InstructItResults,
   validateInstructItResults,
 } from '../models/outputs';
+import { createOpenModelApi } from '../open-model';
 
 import {
   DEFAULT_CONFIG,
@@ -92,14 +107,8 @@ import {
   getRapidApiHeaders,
   RAPID_API_SERVERS,
 } from './defaults';
-import type {
-  EndpointConfig,
-  Config,
-  ServerConfig,
-  RequestConfig,
-  SendRequestOptions,
-} from './types';
-import { omitHeaders, replacePathParams } from './utils';
+import type { EndpointConfig, Config, ServerConfig, RequestConfig, SendRequest } from './types';
+import { omitHeaders, replacePathParams, getModelIdHeader } from './utils';
 
 const resolveRapidApiConfig = (
   apiKey: string,
@@ -188,11 +197,7 @@ const resolveRequestConfig = (
   return resolveDefaultConfig(apiKey, serviceKey, endpointKey, pathParams);
 };
 
-const sendRequest = async <TOutput = void>(
-  apiKey: string,
-  config: Config,
-  options: SendRequestOptions<TOutput>,
-): Promise<TOutput> => {
+const sendRequest = (async (apiKey, config, options) => {
   const { method, serviceKey, endpointKey, pathParams, queryParams, body, responseValidator } =
     options;
 
@@ -204,8 +209,11 @@ const sendRequest = async <TOutput = void>(
     pathParams,
   );
 
-  const headers =
-    body?.type === 'formData' ? omitHeaders(baseHeaders, ['Content-Type']) : baseHeaders;
+  const headers = {
+    ...((body?.type === 'formData' ? omitHeaders(baseHeaders, ['Content-Type']) : baseHeaders) ||
+      {}),
+    ...options.headers,
+  };
 
   const httpClient = createHttpClient({
     baseUrl,
@@ -253,7 +261,7 @@ const sendRequest = async <TOutput = void>(
   }
 
   if (response.status === 204) {
-    return undefined as TOutput;
+    return;
   }
 
   try {
@@ -262,12 +270,12 @@ const sendRequest = async <TOutput = void>(
     return config.validateResponses
       ? responseValidator
         ? responseValidator(output)
-        : (output as TOutput)
-      : (output as TOutput);
+        : output
+      : output;
   } catch (err) {
     throw new JsonParseError(getError(err));
   }
-};
+}) as SendRequest;
 
 const sendInstructRequest = async <TOutput>(
   apiKey: string,
@@ -304,6 +312,7 @@ const sendInstructRequest = async <TOutput>(
     serviceKey,
     endpointKey,
     body: { type: 'formData', data: formData },
+    headers: getModelIdHeader(data.model_id),
     responseValidator: validator,
   });
 };
@@ -315,6 +324,7 @@ const createComprehendApi = (apiKey: string, config: Config) => ({
       serviceKey: 'comprehend',
       endpointKey: 'comprehend',
       body: { type: 'json', data: validateComprehendRequest(request) },
+      headers: getModelIdHeader(request.model_id),
       responseValidator: validateComprehendResults,
     }),
 });
@@ -326,6 +336,7 @@ const createExtractApi = (apiKey: string, config: Config) => ({
       serviceKey: 'extract',
       endpointKey: 'extract',
       body: { type: 'json', data: validateExtractBaseRequest(request) },
+      headers: getModelIdHeader(request.model_id),
       responseValidator: validateExtractBaseResults,
     }),
   relations: async (request: ExtractRelationsRequest): Promise<ExtractRelationsResults> =>
@@ -334,6 +345,7 @@ const createExtractApi = (apiKey: string, config: Config) => ({
       serviceKey: 'extract',
       endpointKey: 'extractRelations',
       body: { type: 'json', data: validateExtractRelationsRequest(request) },
+      headers: getModelIdHeader(request.model_id),
       responseValidator: validateExtractRelationsResults,
     }),
   summary: async (request: ExtractSummaryRequest): Promise<ExtractSummaryResults> =>
@@ -342,6 +354,7 @@ const createExtractApi = (apiKey: string, config: Config) => ({
       serviceKey: 'extract',
       endpointKey: 'extractSummary',
       body: { type: 'json', data: validateExtractSummaryRequest(request) },
+      headers: getModelIdHeader(request.model_id),
       responseValidator: validateExtractSummaryResults,
     }),
 });
@@ -447,6 +460,46 @@ const createDatasetsApi = (apiKey: string, config: Config) => {
         queryParams: validateListFormatsRequest(request),
         responseValidator: validateListFormatsResults,
       }),
+    listData: async (request: ListDataRequest = {}): Promise<ListDataResults> =>
+      sendRequest(apiKey, config, {
+        method: 'GET',
+        serviceKey: 'datasets',
+        endpointKey: 'data',
+        queryParams: validateListDataRequest(request),
+        responseValidator: validateListDataResults,
+      }),
+    createData: async (request: CreateDataRequest): Promise<DataCreationResults> =>
+      sendDatasetsRequest('data', validateCreateDataRequest(request), validateDataCreationResults),
+    getData: async (dataId: string): Promise<Data> =>
+      sendRequest(apiKey, config, {
+        method: 'GET',
+        serviceKey: 'datasets',
+        endpointKey: 'dataById',
+        pathParams: { id: dataId },
+        responseValidator: validateData,
+      }),
+    updateData: async (dataId: string, request: UpdateDataRequest): Promise<void> =>
+      sendRequest(apiKey, config, {
+        method: 'PATCH',
+        serviceKey: 'datasets',
+        endpointKey: 'dataById',
+        pathParams: { id: dataId },
+        body: { type: 'json', data: validateUpdateDataRequest(request) },
+      }),
+    deleteData: async (dataId: string): Promise<void> =>
+      sendRequest(apiKey, config, {
+        method: 'DELETE',
+        serviceKey: 'datasets',
+        endpointKey: 'dataById',
+        pathParams: { id: dataId },
+      }),
+    uploadData: async (dataId: string, request: UploadDataRequest): Promise<DataCreationResults> =>
+      sendDatasetsRequest(
+        'dataUpload',
+        validateUploadDataRequest(request),
+        validateDataCreationResults,
+        { id: dataId },
+      ),
   };
 };
 
@@ -568,5 +621,7 @@ export const createClient = (apiKey: string, config?: Config) => {
     instruct: createInstructApi(apiKey, finalConfig),
     datasets: createDatasetsApi(apiKey, finalConfig),
     finetuning: createFinetuningApi(apiKey, finalConfig),
+    model: (modelId: string, method?: string) =>
+      createOpenModelApi(sendRequest, apiKey, finalConfig, modelId, method),
   };
 };

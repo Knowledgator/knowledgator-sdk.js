@@ -1,15 +1,18 @@
 import type { Config, EndpointConfig, ServerConfig } from './types';
 
 export const DEFAULT_ENDPOINTS: Required<EndpointConfig> = {
-  comprehend: '/comprehend',
-  extract: '/extract',
-  extractRelations: '/extract/relations',
-  extractSummary: '/extract/summary',
-  instruct: '/instruct',
+  comprehend: '/inference/comprehend',
+  extract: '/inference/extract',
+  extractRelations: '/inference/extract/relations',
+  extractSummary: '/inference/extract/summary',
+  instruct: '/inference/instruct',
   datasets: '/datasets',
   datasetsById: '/datasets/:id',
   datasetsUpload: '/datasets/:id/files/upload',
   datasetsFormats: '/files/formats/datasets',
+  data: '/data',
+  dataById: '/data/:id',
+  dataUpload: '/data/:id/files/upload',
   finetuningModels: '/trainings/models',
   finetuningModelsById: '/trainings/models/:id',
   finetuningModelsTypes: '/trainings/models/types',
@@ -18,6 +21,8 @@ export const DEFAULT_ENDPOINTS: Required<EndpointConfig> = {
   finetuningTrainingsStop: '/trainings/:id/stop',
   finetuningTrainingsEvents: '/trainings/:id/events',
   finetuningTrainingsMetrics: '/trainings/:id/metrics/:metric',
+  modelInference: '/inference/:modelId',
+  modelInferenceMethod: '/inference/:modelId/:method',
 } as const;
 
 export const DEFAULT_SERVERS: Required<ServerConfig> = {
@@ -26,6 +31,7 @@ export const DEFAULT_SERVERS: Required<ServerConfig> = {
   instruct: 'https://api.knowledgator.com',
   datasets: 'https://api.knowledgator.com',
   finetuning: 'https://api.knowledgator.com',
+  inference: 'https://api.knowledgator.com',
 } as const;
 
 export const getDefaultHeaders = (apiKey: string): Record<string, string> => ({

@@ -350,7 +350,7 @@ describe(createClient.name, () => {
       const result = await client.comprehend.it(comprehendRequest);
 
       expect(mockValidateComprehendRequest).toHaveBeenCalledWith(comprehendRequest);
-      expect(mockHttpClient.post).toHaveBeenCalledWith('/comprehend', {
+      expect(mockHttpClient.post).toHaveBeenCalledWith('/inference/comprehend', {
         body: JSON.stringify(comprehendRequest),
       });
       expect(mockValidateComprehendResults).toHaveBeenCalledWith(comprehendResults);
@@ -367,7 +367,7 @@ describe(createClient.name, () => {
         const result = await client.extract.it(extractBaseRequest);
 
         expect(mockValidateExtractBaseRequest).toHaveBeenCalledWith(extractBaseRequest);
-        expect(mockHttpClient.post).toHaveBeenCalledWith('/extract', {
+        expect(mockHttpClient.post).toHaveBeenCalledWith('/inference/extract', {
           body: JSON.stringify(extractBaseRequest),
         });
         expect(mockValidateExtractBaseResults).toHaveBeenCalledWith(extractBaseResults);
@@ -383,7 +383,7 @@ describe(createClient.name, () => {
         const result = await client.extract.relations(extractRelationsRequest);
 
         expect(mockValidateExtractRelationsRequest).toHaveBeenCalledWith(extractRelationsRequest);
-        expect(mockHttpClient.post).toHaveBeenCalledWith('/extract/relations', {
+        expect(mockHttpClient.post).toHaveBeenCalledWith('/inference/extract/relations', {
           body: JSON.stringify(extractRelationsRequest),
         });
         expect(mockValidateExtractRelationsResults).toHaveBeenCalledWith(extractRelationsResults);
@@ -399,7 +399,7 @@ describe(createClient.name, () => {
         const result = await client.extract.summary(extractSummaryRequest);
 
         expect(mockValidateExtractSummaryRequest).toHaveBeenCalledWith(extractSummaryRequest);
-        expect(mockHttpClient.post).toHaveBeenCalledWith('/extract/summary', {
+        expect(mockHttpClient.post).toHaveBeenCalledWith('/inference/extract/summary', {
           body: JSON.stringify(extractSummaryRequest),
         });
         expect(mockValidateExtractSummaryResults).toHaveBeenCalledWith(extractSummaryResults);
@@ -416,7 +416,7 @@ describe(createClient.name, () => {
       const result = await client.instruct.it(instructItRequest);
 
       expect(mockValidateInstructItRequest).toHaveBeenCalledWith(instructItRequest);
-      expect(mockHttpClient.post).toHaveBeenCalledWith('/instruct', {
+      expect(mockHttpClient.post).toHaveBeenCalledWith('/inference/instruct', {
         body: expect.any(FormData),
       });
 

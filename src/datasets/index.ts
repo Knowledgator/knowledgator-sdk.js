@@ -6,6 +6,10 @@ export {
   type UpdateDatasetRequest,
   type UploadDatasetRequest,
   type ListFormatsRequest,
+  type ListDataRequest,
+  type CreateDataRequest,
+  type UpdateDataRequest,
+  type UploadDataRequest,
   DatasetFormatEnum,
   DatasetStatusEnum,
   validateListDatasetsRequest,
@@ -13,6 +17,10 @@ export {
   validateUpdateDatasetRequest,
   validateUploadDatasetRequest,
   validateListFormatsRequest,
+  validateListDataRequest,
+  validateCreateDataRequest,
+  validateUpdateDataRequest,
+  validateUploadDataRequest,
 } from './inputs';
 
 export {
@@ -20,8 +28,14 @@ export {
   type ListDatasetsResults,
   type DatasetCreationResults,
   type ListFormatsResults,
+  type Data,
+  type ListDataResults,
+  type DataCreationResults,
   validateDataset,
   validateListDatasetsResults,
   validateDatasetCreationResults,
   validateListFormatsResults,
+  validateData,
+  validateListDataResults,
+  validateDataCreationResults,
 } from './outputs';

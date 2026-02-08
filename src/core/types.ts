@@ -7,15 +7,22 @@ export interface RequestConfig {
   baseHeaders: Record<string, string> | undefined;
 }
 
-export interface SendRequestOptions<TOutput> {
+interface SendRequestOptions<TOutput> {
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS';
   serviceKey: keyof ServerConfig;
   endpointKey: keyof EndpointConfig;
   pathParams?: Record<string, string>;
   queryParams?: Record<string, unknown>;
   body?: { type: 'json'; data: unknown } | { type: 'formData'; data: FormData };
+  headers?: Record<string, string>;
   responseValidator?: (data: unknown) => TOutput;
 }
+
+export type SendRequest = <TOutput = void>(
+  apiKey: string,
+  config: Config,
+  options: SendRequestOptions<TOutput>,
+) => Promise<TOutput>;
 
 export interface ServerConfig {
   readonly comprehend?: string;
@@ -23,6 +30,7 @@ export interface ServerConfig {
   readonly instruct?: string;
   readonly datasets?: string;
   readonly finetuning?: string;
+  readonly inference?: string;
 }
 
 export interface EndpointConfig {
@@ -35,6 +43,9 @@ export interface EndpointConfig {
   readonly datasetsById?: string;
   readonly datasetsUpload?: string;
   readonly datasetsFormats?: string;
+  readonly data?: string;
+  readonly dataById?: string;
+  readonly dataUpload?: string;
   readonly finetuningModels?: string;
   readonly finetuningModelsById?: string;
   readonly finetuningModelsTypes?: string;
@@ -43,6 +54,8 @@ export interface EndpointConfig {
   readonly finetuningTrainingsStop?: string;
   readonly finetuningTrainingsEvents?: string;
   readonly finetuningTrainingsMetrics?: string;
+  readonly modelInference?: string;
+  readonly modelInferenceMethod?: string;
 }
 
 export type Config = (
