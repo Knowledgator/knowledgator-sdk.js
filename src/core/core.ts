@@ -197,7 +197,7 @@ const resolveRequestConfig = (
   return resolveDefaultConfig(apiKey, serviceKey, endpointKey, pathParams);
 };
 
-const sendRequest: SendRequest = async <TOutput>(apiKey, config, options) => {
+const sendRequest = (async (apiKey, config, options) => {
   const { method, serviceKey, endpointKey, pathParams, queryParams, body, responseValidator } =
     options;
 
@@ -261,7 +261,7 @@ const sendRequest: SendRequest = async <TOutput>(apiKey, config, options) => {
   }
 
   if (response.status === 204) {
-    return undefined as TOutput;
+    return;
   }
 
   try {
@@ -270,12 +270,12 @@ const sendRequest: SendRequest = async <TOutput>(apiKey, config, options) => {
     return config.validateResponses
       ? responseValidator
         ? responseValidator(output)
-        : (output as TOutput)
-      : (output as TOutput);
+        : output
+      : output;
   } catch (err) {
     throw new JsonParseError(getError(err));
   }
-};
+}) as SendRequest;
 
 const sendInstructRequest = async <TOutput>(
   apiKey: string,
