@@ -53,8 +53,10 @@
     "lint": "eslint \"src/**/*.ts\"",
     "lint:fix": "eslint \"src/**/*.ts\" --fix",
     "lint-staged": "lint-staged",
-    "test": "jest",
-    "test:coverage": "jest --coverage",
+    "test": "jest --testPathPattern=src/",
+    "test:unit": "jest --testPathPattern=src/",
+    "test:e2e": "jest --testPathPattern=tests/e2e/",
+    "test:coverage": "jest --coverage --testPathPattern=src/",
     "prepare": "husky install",
     "prepublishOnly": "npm run build",
     "release": "release-it"
