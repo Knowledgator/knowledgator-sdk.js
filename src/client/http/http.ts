@@ -73,6 +73,7 @@ const makeRequest =
           ),
           signal: controller.signal,
           body: options.body,
+          redirect: 'follow',
         };
 
         if (config.requestInterceptor) {
