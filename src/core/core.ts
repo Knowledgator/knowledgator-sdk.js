@@ -134,6 +134,7 @@ const resolveRapidApiConfig = (
 };
 
 const resolveCustomConfig = (
+  apiKey: string,
   config: Extract<Config, { provider: 'custom' }>,
   serviceKey: keyof ServerConfig,
   endpointKey: keyof EndpointConfig,
@@ -158,7 +159,10 @@ const resolveCustomConfig = (
   return {
     baseUrl,
     endpoint: replacePathParams(endpoint, pathParams),
-    baseHeaders: config.baseHeaders,
+    baseHeaders: {
+      ...(apiKey ? getDefaultHeaders(apiKey) : {}),
+      ...config.baseHeaders,
+    },
   };
 };
 
@@ -191,7 +195,7 @@ const resolveRequestConfig = (
   }
 
   if (config.provider === 'custom') {
-    return resolveCustomConfig(config, serviceKey, endpointKey, pathParams);
+    return resolveCustomConfig(apiKey, config, serviceKey, endpointKey, pathParams);
   }
 
   return resolveDefaultConfig(apiKey, serviceKey, endpointKey, pathParams);
