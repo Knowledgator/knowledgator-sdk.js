@@ -1,11 +1,11 @@
 import type { Config, EndpointConfig, ServerConfig } from './types';
 
 export const DEFAULT_ENDPOINTS: Required<EndpointConfig> = {
-  comprehend: '/inference/comprehend',
-  extract: '/inference/extract',
+  comprehend: '/inference/comprehend/',
+  extract: '/inference/extract/',
   extractRelations: '/inference/extract/relations',
   extractSummary: '/inference/extract/summary',
-  instruct: '/inference/instruct',
+  instruct: '/inference/instruct/',
   datasets: '/datasets',
   datasetsById: '/datasets/:id',
   datasetsUpload: '/datasets/:id/files/upload',
@@ -54,7 +54,7 @@ export const getRapidApiHeaders = (host: string, apiKey: string): Record<string,
 export const DEFAULT_CONFIG: Config = {
   provider: 'knowledgator',
   validateResponses: true,
-  timeout: 30000,
+  timeout: 60000,
   retryPolicy: {
     maxTries: 3,
     baseDelay: 0.25,
