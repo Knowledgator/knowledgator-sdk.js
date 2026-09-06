@@ -51,11 +51,19 @@ export type ExtractRelationsResults = v.InferOutput<typeof ExtractRelationsResul
 
 export type ExtractSummaryResults = v.InferOutput<typeof ExtractSummaryResultsSchema>;
 
-export const validateComprehendResults = (data: unknown): ComprehendResults =>
-  v.parse(ComprehendResultsSchema, data);
+export const validateComprehendResults = (data: unknown): ComprehendResults => {
+  if (data && typeof data === 'object' && !('results' in data) && 'outputs' in data) {
+    return v.parse(ComprehendResultsSchema, { ...(data as object), results: (data as Record<string, unknown>).outputs });
+  }
+  return v.parse(ComprehendResultsSchema, data);
+};
 
-export const validateExtractBaseResults = (data: unknown): ExtractBaseResults =>
-  v.parse(ExtractBaseResultsSchema, data);
+export const validateExtractBaseResults = (data: unknown): ExtractBaseResults => {
+  if (data && typeof data === 'object' && !('results' in data) && 'outputs' in data) {
+    return v.parse(ExtractBaseResultsSchema, { ...(data as object), results: (data as Record<string, unknown>).outputs });
+  }
+  return v.parse(ExtractBaseResultsSchema, data);
+};
 
 export const validateExtractRelationsResults = (data: unknown): ExtractRelationsResults =>
   v.parse(ExtractRelationsResultsSchema, data);

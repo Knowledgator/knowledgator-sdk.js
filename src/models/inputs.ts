@@ -15,7 +15,8 @@ const ComprehendRequestSchema = v.object({
 
 const ExtractBaseRequestSchema = v.object({
   text: v.pipe(v.string(), v.minLength(1)),
-  labels: v.pipe(v.array(v.string()), v.minLength(1)),
+  labels: v.optional(v.array(v.string())),
+  entities: v.optional(v.array(v.string())),
   threshold: v.optional(v.pipe(v.number(), v.minValue(0.0), v.maxValue(1.0)), 0.5),
   prompt: v.optional(v.string()),
   model_id: v.optional(v.string()),
@@ -55,8 +56,13 @@ export type ExtractSummaryRequest = v.InferInput<typeof ExtractSummaryRequestSch
 export const validateComprehendRequest = (data: unknown): ComprehendRequest =>
   v.parse(ComprehendRequestSchema, data);
 
-export const validateExtractBaseRequest = (data: unknown): ExtractBaseRequest =>
-  v.parse(ExtractBaseRequestSchema, data);
+export const validateExtractBaseRequest = (data: unknown): ExtractBaseRequest => {
+  const parsed = v.parse(ExtractBaseRequestSchema, data);
+  if ((!parsed.labels || parsed.labels.length === 0) && (!parsed.entities || parsed.entities.length === 0)) {
+    throw new Error('At least one label or entity must be provided');
+  }
+  return parsed;
+};
 
 export const validateExtractRelationsRequest = (data: unknown): ExtractRelationsRequest =>
   v.parse(ExtractRelationsRequestSchema, data);

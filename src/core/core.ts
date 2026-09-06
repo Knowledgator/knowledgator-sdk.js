@@ -330,15 +330,22 @@ const createComprehendApi = (apiKey: string, config: Config) => ({
 });
 
 const createExtractApi = (apiKey: string, config: Config) => ({
-  it: async (request: ExtractBaseRequest): Promise<ExtractBaseResults> =>
-    sendRequest(apiKey, config, {
+  it: async (request: ExtractBaseRequest): Promise<ExtractBaseResults> => {
+    const validated = validateExtractBaseRequest(request);
+    const { labels, entities, ...rest } = validated;
+    const data = {
+      ...rest,
+      entities: entities ?? labels ?? [],
+    };
+    return sendRequest(apiKey, config, {
       method: 'POST',
       serviceKey: 'extract',
       endpointKey: 'extract',
-      body: { type: 'json', data: validateExtractBaseRequest(request) },
+      body: { type: 'json', data },
       headers: getModelIdHeader(request.model_id),
       responseValidator: validateExtractBaseResults,
-    }),
+    });
+  },
   relations: async (request: ExtractRelationsRequest): Promise<ExtractRelationsResults> =>
     sendRequest(apiKey, config, {
       method: 'POST',

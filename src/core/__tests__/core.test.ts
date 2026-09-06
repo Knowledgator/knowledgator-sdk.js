@@ -350,7 +350,7 @@ describe(createClient.name, () => {
       const result = await client.comprehend.it(comprehendRequest);
 
       expect(mockValidateComprehendRequest).toHaveBeenCalledWith(comprehendRequest);
-      expect(mockHttpClient.post).toHaveBeenCalledWith('/inference/comprehend', {
+      expect(mockHttpClient.post).toHaveBeenCalledWith('/inference/comprehend/', {
         body: JSON.stringify(comprehendRequest),
       });
       expect(mockValidateComprehendResults).toHaveBeenCalledWith(comprehendResults);
@@ -367,8 +367,13 @@ describe(createClient.name, () => {
         const result = await client.extract.it(extractBaseRequest);
 
         expect(mockValidateExtractBaseRequest).toHaveBeenCalledWith(extractBaseRequest);
-        expect(mockHttpClient.post).toHaveBeenCalledWith('/inference/extract', {
-          body: JSON.stringify(extractBaseRequest),
+        const { labels, entities, ...rest } = extractBaseRequest;
+        const expectedData = {
+          ...rest,
+          entities: entities ?? labels ?? [],
+        };
+        expect(mockHttpClient.post).toHaveBeenCalledWith('/inference/extract/', {
+          body: JSON.stringify(expectedData),
         });
         expect(mockValidateExtractBaseResults).toHaveBeenCalledWith(extractBaseResults);
         expect(result).toBe(extractBaseResults);
@@ -416,7 +421,7 @@ describe(createClient.name, () => {
       const result = await client.instruct.it(instructItRequest);
 
       expect(mockValidateInstructItRequest).toHaveBeenCalledWith(instructItRequest);
-      expect(mockHttpClient.post).toHaveBeenCalledWith('/inference/instruct', {
+      expect(mockHttpClient.post).toHaveBeenCalledWith('/inference/instruct/', {
         body: expect.any(FormData),
       });
 
