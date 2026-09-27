@@ -74,17 +74,34 @@ const ListFormatsResultsSchema = v.pipe(
   }),
 );
 
-const DataSchema = v.object({
+const DataFileSchema = v.object({
   id: v.string(),
-  name: v.string(),
-  type: v.string(),
-  format: v.string(),
-  description: v.optional(v.string()),
-  created_at: v.string(),
-  updated_at: v.string(),
-  file_count: v.optional(v.number()),
-  total_size: v.optional(v.number()),
+  created_by_oauth_id: v.optional(v.string()),
+  created_at: v.optional(v.string()),
+  updated_at: v.optional(v.string()),
+  size: v.optional(v.number()),
 });
+
+const DataSchema = v.pipe(
+  v.object({
+    id: v.string(),
+    name: v.string(),
+    type: v.string(),
+    format: v.string(),
+    description: v.optional(v.string()),
+    short_description: v.optional(v.string()),
+    created_by_oauth_id: v.optional(v.string()),
+    created_at: v.optional(v.string(), ''),
+    updated_at: v.optional(v.string(), ''),
+    file_count: v.optional(v.number()),
+    total_size: v.optional(v.number()),
+    files: v.optional(v.array(DataFileSchema)),
+  }),
+  v.transform((dataItem) => ({
+    ...dataItem,
+    description: dataItem.description ?? dataItem.short_description,
+  })),
+);
 
 const ListDataResultsSchema = v.object({
   data: v.array(DataSchema),
