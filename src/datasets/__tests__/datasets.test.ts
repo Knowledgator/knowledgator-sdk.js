@@ -198,7 +198,7 @@ describe('Datasets API', () => {
       const result = await client.datasets.list(listDatasetsRequest);
 
       expect(mockValidateListDatasetsRequest).toHaveBeenCalledWith(listDatasetsRequest);
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/datasets', {
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/datasets/', {
         params: { offset: 0, limit: 10 },
       });
       expect(mockValidateListDatasetsResults).toHaveBeenCalledWith(listDatasetsResults);
@@ -212,7 +212,7 @@ describe('Datasets API', () => {
 
       const result = await client.datasets.list();
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/datasets', {
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/datasets/', {
         params: {},
       });
       expect(result).toBe(listDatasetsResults);
@@ -234,7 +234,7 @@ describe('Datasets API', () => {
       await client.datasets.list(requestWithFilters);
 
       // Note: null/undefined filtering is now handled by the http client's buildUrl
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/datasets', {
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/datasets/', {
         params: requestWithFilters,
       });
     });
@@ -248,7 +248,7 @@ describe('Datasets API', () => {
       const result = await client.datasets.create(createDatasetRequest);
 
       expect(mockValidateCreateDatasetRequest).toHaveBeenCalledWith(createDatasetRequest);
-      expect(mockHttpClient.post).toHaveBeenCalledWith('/datasets', {
+      expect(mockHttpClient.post).toHaveBeenCalledWith('/datasets/', {
         body: expect.any(FormData),
       });
 
@@ -288,7 +288,7 @@ describe('Datasets API', () => {
 
       const result = await client.datasets.get('dataset-123');
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/datasets/dataset-123', {});
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/datasets/dataset-123/', {});
       expect(mockValidateDataset).toHaveBeenCalledWith(dataset);
       expect(result).toBe(dataset);
     });
@@ -301,7 +301,7 @@ describe('Datasets API', () => {
       await client.datasets.update('dataset-123', updateDatasetRequest);
 
       expect(mockValidateUpdateDatasetRequest).toHaveBeenCalledWith(updateDatasetRequest);
-      expect(mockHttpClient.patch).toHaveBeenCalledWith('/datasets/dataset-123', {
+      expect(mockHttpClient.patch).toHaveBeenCalledWith('/datasets/dataset-123/', {
         body: JSON.stringify(updateDatasetRequest),
       });
     });
@@ -313,7 +313,7 @@ describe('Datasets API', () => {
 
       await client.datasets.delete('dataset-123');
 
-      expect(mockHttpClient.delete).toHaveBeenCalledWith('/datasets/dataset-123', {});
+      expect(mockHttpClient.delete).toHaveBeenCalledWith('/datasets/dataset-123/', {});
     });
   });
 
@@ -325,7 +325,7 @@ describe('Datasets API', () => {
       const result = await client.datasets.upload('dataset-123', uploadDatasetRequest);
 
       expect(mockValidateUploadDatasetRequest).toHaveBeenCalledWith(uploadDatasetRequest);
-      expect(mockHttpClient.post).toHaveBeenCalledWith('/datasets/dataset-123/files/upload', {
+      expect(mockHttpClient.post).toHaveBeenCalledWith('/datasets/dataset-123/files/upload/', {
         body: expect.any(FormData),
       });
 
@@ -346,7 +346,7 @@ describe('Datasets API', () => {
       const result = await client.datasets.listFormats(listFormatsRequest);
 
       expect(mockValidateListFormatsRequest).toHaveBeenCalledWith(listFormatsRequest);
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/files/formats/datasets', {
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/files/formats/datasets/', {
         params: { offset: 0, limit: 100 },
       });
       expect(mockValidateListFormatsResults).toHaveBeenCalledWith(listFormatsResults);

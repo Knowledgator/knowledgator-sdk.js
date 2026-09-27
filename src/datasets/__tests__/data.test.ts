@@ -185,7 +185,7 @@ describe('Data API', () => {
       const result = await client.datasets.listData(listDataRequest);
 
       expect(mockValidateListDataRequest).toHaveBeenCalledWith(listDataRequest);
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/data', {
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/data/', {
         params: { offset: 0, limit: 10 },
       });
       expect(mockValidateListDataResults).toHaveBeenCalledWith(listDataResults);
@@ -201,7 +201,7 @@ describe('Data API', () => {
       const result = await client.datasets.createData(createDataRequest);
 
       expect(mockValidateCreateDataRequest).toHaveBeenCalledWith(createDataRequest);
-      expect(mockHttpClient.post).toHaveBeenCalledWith('/data', {
+      expect(mockHttpClient.post).toHaveBeenCalledWith('/data/', {
         body: expect.any(FormData),
       });
 
@@ -224,7 +224,7 @@ describe('Data API', () => {
 
       const result = await client.datasets.getData('data-123');
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/data/data-123', {});
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/data/data-123/', {});
       expect(mockValidateData).toHaveBeenCalledWith(dataItem);
       expect(result).toBe(dataItem);
     });
@@ -237,7 +237,7 @@ describe('Data API', () => {
       await client.datasets.updateData('data-123', updateDataRequest);
 
       expect(mockValidateUpdateDataRequest).toHaveBeenCalledWith(updateDataRequest);
-      expect(mockHttpClient.patch).toHaveBeenCalledWith('/data/data-123', {
+      expect(mockHttpClient.patch).toHaveBeenCalledWith('/data/data-123/', {
         body: JSON.stringify(updateDataRequest),
       });
     });
@@ -249,7 +249,7 @@ describe('Data API', () => {
 
       await client.datasets.deleteData('data-123');
 
-      expect(mockHttpClient.delete).toHaveBeenCalledWith('/data/data-123', {});
+      expect(mockHttpClient.delete).toHaveBeenCalledWith('/data/data-123/', {});
     });
   });
 
@@ -261,7 +261,7 @@ describe('Data API', () => {
       const result = await client.datasets.uploadData('data-123', uploadDataRequest);
 
       expect(mockValidateUploadDataRequest).toHaveBeenCalledWith(uploadDataRequest);
-      expect(mockHttpClient.post).toHaveBeenCalledWith('/data/data-123/files/upload', {
+      expect(mockHttpClient.post).toHaveBeenCalledWith('/data/data-123/files/upload/', {
         body: expect.any(FormData),
       });
 
