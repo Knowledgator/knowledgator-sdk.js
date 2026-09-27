@@ -463,6 +463,30 @@ const createDatasetsApi = (apiKey: string, config: Config) => {
         validateDatasetCreationResults,
         { id: datasetId },
       ),
+    generatePlan: async (request: { prompt: string }): Promise<unknown> =>
+      sendRequest(apiKey, config, {
+        method: 'POST',
+        serviceKey: 'datasets',
+        endpointKey: 'datasetsGeneratePlan',
+        body: { type: 'json', data: { prompt: request.prompt } },
+      }),
+    generate: async (request: {
+      name: string;
+      prompt: string;
+      type: string;
+      num_samples: number;
+      domains?: string[];
+      classes?: string[];
+      entity_types?: string[];
+      json_template?: string;
+      ner_output_format?: string;
+    }): Promise<unknown> =>
+      sendRequest(apiKey, config, {
+        method: 'POST',
+        serviceKey: 'datasets',
+        endpointKey: 'datasetsGenerate',
+        body: { type: 'json', data: request },
+      }),
     listFormats: async (request: ListFormatsRequest = {}): Promise<ListFormatsResults> =>
       sendRequest(apiKey, config, {
         method: 'GET',
