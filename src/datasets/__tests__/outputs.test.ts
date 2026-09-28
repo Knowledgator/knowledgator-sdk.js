@@ -1,4 +1,8 @@
-import { validateListDatasetsResults, validateListFormatsResults, validateDataset, validateListDataResults } from '../outputs';
+import {
+  validateListDatasetsResults,
+  validateListFormatsResults,
+  validateListDataResults,
+} from '../outputs';
 
 describe('Datasets Outputs Validation', () => {
   describe('ListDatasetsResultsSchema', () => {
@@ -72,10 +76,7 @@ describe('Datasets Outputs Validation', () => {
         total: 2,
         offset: 0,
         limit: 10,
-        formats: [
-          { name: 'json', description: 'JSON format' },
-          { name: 'parquet' },
-        ],
+        formats: [{ name: 'json', description: 'JSON format' }, { name: 'parquet' }],
       };
 
       const result = validateListFormatsResults(legacyPayload);

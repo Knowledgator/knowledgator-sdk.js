@@ -58,7 +58,10 @@ export const validateComprehendRequest = (data: unknown): ComprehendRequest =>
 
 export const validateExtractBaseRequest = (data: unknown): ExtractBaseRequest => {
   const parsed = v.parse(ExtractBaseRequestSchema, data);
-  if ((!parsed.labels || parsed.labels.length === 0) && (!parsed.entities || parsed.entities.length === 0)) {
+  if (
+    (!parsed.labels || parsed.labels.length === 0) &&
+    (!parsed.entities || parsed.entities.length === 0)
+  ) {
     throw new Error('At least one label or entity must be provided');
   }
   return parsed;
