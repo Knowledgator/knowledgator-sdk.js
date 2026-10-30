@@ -186,6 +186,8 @@ describe('Datasets API', () => {
       expect(client.datasets).toHaveProperty('update');
       expect(client.datasets).toHaveProperty('delete');
       expect(client.datasets).toHaveProperty('upload');
+      expect(client.datasets).toHaveProperty('download');
+      expect(client.datasets).toHaveProperty('streamDownload');
       expect(client.datasets).toHaveProperty('listFormats');
     });
   });
@@ -533,6 +535,102 @@ describe('Datasets API', () => {
       await expect(client.datasets.list()).rejects.toThrow('Invalid list response');
 
       expect(mockValidateListDatasetsResults).toHaveBeenCalledWith({});
+    });
+  });
+
+  describe('download dataset', () => {
+    it('should download dataset in-memory as raw bytes', async () => {
+      const client = createClient('apiKey');
+      const sampleData = [{ text: 'sample review', true_labels: ['positive'] }];
+      const sampleJson = JSON.stringify(sampleData);
+
+      const fakeResponse = {
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: jest.fn().mockResolvedValue(sampleJson),
+      } as unknown as Response;
+
+      mockHttpClient.get.mockResolvedValue(fakeResponse);
+
+      const result = await client.datasets.download('dataset-123');
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/datasets/dataset-123/download/');
+      expect(result).toBeInstanceOf(Uint8Array);
+      expect(new TextDecoder().decode(result as Uint8Array)).toBe(sampleJson);
+    });
+
+    it('should download dataset with returnData: true and parse JSON', async () => {
+      const client = createClient('apiKey');
+      const sampleData = [{ text: 'sample review', true_labels: ['positive'] }];
+      const sampleJson = JSON.stringify(sampleData);
+
+      const fakeResponse = {
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: jest.fn().mockResolvedValue(sampleJson),
+      } as unknown as Response;
+
+      mockHttpClient.get.mockResolvedValue(fakeResponse);
+
+      const result = await client.datasets.download('dataset-123', { returnData: true });
+      expect(result).toEqual(sampleData);
+    });
+
+    it('should stream download dataset chunks', async () => {
+      const client = createClient('apiKey');
+      const sampleData = 'chunk1chunk2chunk3';
+
+      const fakeResponse = {
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'text/plain' }),
+        text: jest.fn().mockResolvedValue(sampleData),
+        arrayBuffer: jest.fn().mockResolvedValue(new TextEncoder().encode(sampleData).buffer),
+      } as unknown as Response;
+
+      mockHttpClient.get.mockResolvedValue(fakeResponse);
+
+      const chunks: Uint8Array[] = [];
+      for await (const chunk of client.datasets.streamDownload('dataset-123', { chunkSize: 6 })) {
+        chunks.push(chunk);
+      }
+
+      expect(chunks.length).toBe(3);
+      expect(new TextDecoder().decode(chunks[0])).toBe('chunk1');
+      expect(new TextDecoder().decode(chunks[1])).toBe('chunk2');
+      expect(new TextDecoder().decode(chunks[2])).toBe('chunk3');
+    });
+
+    it('should follow storage URL redirect pointer', async () => {
+      const client = createClient('apiKey');
+      const storageUrl = 'https://s3.amazonaws.com/bucket/dataset.json';
+      const fileContent = '[{"item": 1}]';
+
+      const redirectResponse = {
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: jest.fn().mockResolvedValue(JSON.stringify({ url: storageUrl })),
+      } as unknown as Response;
+
+      mockHttpClient.get.mockResolvedValue(redirectResponse);
+
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        arrayBuffer: jest.fn().mockResolvedValue(new TextEncoder().encode(fileContent).buffer),
+      } as unknown as Response);
+
+      try {
+        const result = await client.datasets.download('dataset-123', { returnData: true });
+        expect(global.fetch).toHaveBeenCalledWith(storageUrl, { redirect: 'follow' });
+        expect(result).toEqual([{ item: 1 }]);
+      } finally {
+        global.fetch = originalFetch;
+      }
     });
   });
 });

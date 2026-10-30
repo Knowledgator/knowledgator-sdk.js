@@ -1,4 +1,5 @@
 import * as dotenv from 'dotenv';
+
 import { createClient } from '../../src';
 
 dotenv.config({ override: true });
@@ -33,6 +34,11 @@ export const getE2EClient = (): KnowledgatorClient | null => {
             extractRelations: '/inference/extract/relations',
             extractSummary: '/inference/extract/summary',
             instruct: '/inference/instruct/',
+            datasets: '/datasets/',
+            datasetsById: '/datasets/:id/',
+            datasetsUpload: '/datasets/:id/files/upload/',
+            datasetsDownload: '/datasets/:id/download/',
+            datasetsFormats: '/files/formats/datasets/',
           },
         }
       : {}),
