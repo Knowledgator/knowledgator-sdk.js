@@ -9,6 +9,7 @@ export const DEFAULT_ENDPOINTS: Required<EndpointConfig> = {
   datasets: '/datasets/',
   datasetsById: '/datasets/:id/',
   datasetsUpload: '/datasets/:id/files/upload/',
+  datasetsDownload: '/datasets/:id/download/',
   datasetsGeneratePlan: '/datasets/generate/plan/',
   datasetsGenerate: '/datasets/generate/',
   datasetsFormats: '/files/formats/datasets/',

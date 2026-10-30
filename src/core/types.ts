@@ -42,6 +42,7 @@ export interface EndpointConfig {
   readonly datasets?: string;
   readonly datasetsById?: string;
   readonly datasetsUpload?: string;
+  readonly datasetsDownload?: string;
   readonly datasetsGeneratePlan?: string;
   readonly datasetsGenerate?: string;
   readonly datasetsFormats?: string;

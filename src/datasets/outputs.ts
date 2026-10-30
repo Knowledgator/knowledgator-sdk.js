@@ -19,6 +19,7 @@ const DatasetSchema = v.pipe(
   v.transform((dataset) => ({
     ...dataset,
     description: dataset.description ?? dataset.short_description,
+    short_description: dataset.short_description ?? dataset.description,
   })),
 );
 
@@ -100,6 +101,7 @@ const DataSchema = v.pipe(
   v.transform((dataItem) => ({
     ...dataItem,
     description: dataItem.description ?? dataItem.short_description,
+    short_description: dataItem.short_description ?? dataItem.description,
   })),
 );
 

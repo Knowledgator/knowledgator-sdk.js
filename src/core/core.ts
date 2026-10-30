@@ -1,8 +1,12 @@
+import * as fs from 'fs';
+import * as path from 'path';
+
 import {
   ApiKeyRequiredError,
   CustomProviderMissingConfigError,
   CustomProviderMissingEndpointError,
   CustomProviderMissingServerError,
+  HttpError,
   JsonParseError,
   RapidApiNotSupportedError,
 } from '../client/errors';
@@ -14,6 +18,8 @@ import {
   type CreateDatasetRequest,
   type UpdateDatasetRequest,
   type UploadDatasetRequest,
+  type DownloadDatasetOptions,
+  type StreamDownloadDatasetOptions,
   type ListFormatsRequest,
   type ListDataRequest,
   type CreateDataRequest,
@@ -150,7 +156,7 @@ const resolveCustomConfig = (
     throw new CustomProviderMissingServerError(serviceKey);
   }
 
-  const endpoint = config.endpoints[endpointKey];
+  const endpoint = config.endpoints[endpointKey] ?? DEFAULT_ENDPOINTS[endpointKey];
 
   if (!endpoint) {
     throw new CustomProviderMissingEndpointError(endpointKey);
@@ -385,7 +391,7 @@ const createInstructApi = (apiKey: string, config: Config) => ({
 const createDatasetsApi = (apiKey: string, config: Config) => {
   const sendDatasetsRequest = async <TOutput>(
     endpointKey: keyof EndpointConfig,
-    data: CreateDatasetRequest | UploadDatasetRequest,
+    data: CreateDatasetRequest | UploadDatasetRequest | CreateDataRequest | UploadDataRequest,
     validator: (data: unknown) => TOutput,
     pathParams?: Record<string, string>,
   ): Promise<TOutput> => {
@@ -398,11 +404,41 @@ const createDatasetsApi = (apiKey: string, config: Config) => {
       if (data.description) {
         formData.append('description', data.description);
       }
-      if (data.file) {
+      if (data.short_description) {
+        formData.append('short_description', data.short_description);
+      } else if (data.description) {
+        formData.append('short_description', data.description);
+      }
+    }
+
+    const filePath =
+      'filePath' in data || 'file_path' in data
+        ? ((data as { filePath?: string; file_path?: string }).filePath ??
+          (data as { filePath?: string; file_path?: string }).file_path)
+        : undefined;
+    if (filePath) {
+      if (!fs.existsSync(filePath)) {
+        throw new Error(`Dataset file not found: ${filePath}`);
+      }
+      const fileBytes = fs.readFileSync(filePath);
+      const fileName = path.basename(filePath);
+      formData.append('file', new Blob([fileBytes]), fileName);
+    } else if (data.file) {
+      if (data.file instanceof Blob) {
+        formData.append('file', data.file);
+      } else if (Buffer.isBuffer(data.file) || data.file instanceof Uint8Array) {
+        formData.append('file', new Blob([data.file]), 'dataset.json');
+      } else if (typeof data.file === 'string') {
+        if (fs.existsSync(data.file)) {
+          const fileBytes = fs.readFileSync(data.file);
+          const fileName = path.basename(data.file);
+          formData.append('file', new Blob([fileBytes]), fileName);
+        } else {
+          formData.append('file', new Blob([data.file]), 'dataset.json');
+        }
+      } else {
         formData.append('file', data.file);
       }
-    } else {
-      formData.append('file', data.file);
     }
 
     return sendRequest(apiKey, config, {
@@ -415,7 +451,7 @@ const createDatasetsApi = (apiKey: string, config: Config) => {
     });
   };
 
-  return {
+  const api = {
     list: async (request: ListDatasetsRequest = {}): Promise<ListDatasetsResults> =>
       sendRequest(apiKey, config, {
         method: 'GET',
@@ -463,6 +499,172 @@ const createDatasetsApi = (apiKey: string, config: Config) => {
         validateDatasetCreationResults,
         { id: datasetId },
       ),
+    streamDownload: async function* (
+      datasetId: string,
+      options?: StreamDownloadDatasetOptions,
+    ): AsyncGenerator<Uint8Array, void, unknown> {
+      const { baseUrl, endpoint, baseHeaders } = resolveRequestConfig(
+        apiKey,
+        config,
+        'datasets',
+        'datasetsDownload',
+        { id: datasetId },
+      );
+
+      const httpClient = createHttpClient({
+        baseUrl,
+        baseHeaders,
+        timeout: config.timeout,
+        retryPolicy: config.retryPolicy,
+        requestInterceptor: config.requestInterceptor,
+        responseInterceptor: config.responseInterceptor,
+        logger: config.logger,
+      });
+
+      const response = await httpClient.get(endpoint);
+      if (!response.ok) {
+        throw new HttpError(response);
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      let targetUrl: string | null = null;
+      let initialBytes: Uint8Array | null = null;
+
+      if (contentType.toLowerCase().includes('application/json')) {
+        const text = await response.text();
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed && typeof parsed === 'object' && typeof parsed.url === 'string') {
+            targetUrl = parsed.url;
+          } else if (typeof parsed === 'string' && /^https?:\/\//i.test(parsed)) {
+            targetUrl = parsed;
+          } else {
+            initialBytes = new TextEncoder().encode(text);
+          }
+        } catch {
+          initialBytes = new TextEncoder().encode(text);
+        }
+      }
+
+      let streamResponse = response;
+      if (targetUrl) {
+        config.logger?.debug('Following storage URL redirect', { targetUrl });
+        const storageResp = await fetch(targetUrl, { redirect: 'follow' });
+        if (!storageResp.ok) {
+          throw new HttpError(storageResp);
+        }
+        streamResponse = storageResp;
+      }
+
+      const chunkSize = options?.chunkSize ?? options?.chunk_size ?? 65536;
+
+      if (initialBytes) {
+        for (let i = 0; i < initialBytes.length; i += chunkSize) {
+          yield initialBytes.subarray(i, i + chunkSize);
+        }
+        return;
+      }
+
+      if (streamResponse.body) {
+        const reader = streamResponse.body.getReader();
+        try {
+          let buffer = new Uint8Array(0);
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value) {
+              const combined = new Uint8Array(buffer.length + value.length);
+              combined.set(buffer);
+              combined.set(value, buffer.length);
+              buffer = combined;
+
+              while (buffer.length >= chunkSize) {
+                yield buffer.subarray(0, chunkSize);
+                buffer = buffer.subarray(chunkSize);
+              }
+            }
+          }
+          if (buffer.length > 0) {
+            yield buffer;
+          }
+        } finally {
+          reader.releaseLock();
+        }
+      } else if (typeof streamResponse.arrayBuffer === 'function') {
+        const arrayBuf = await streamResponse.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuf);
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          yield bytes.subarray(i, i + chunkSize);
+        }
+      } else if (typeof streamResponse.text === 'function') {
+        const text = await streamResponse.text();
+        const bytes = new TextEncoder().encode(text);
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          yield bytes.subarray(i, i + chunkSize);
+        }
+      }
+    },
+    download: async (
+      datasetId: string,
+      options?: DownloadDatasetOptions,
+    ): Promise<Uint8Array | unknown | string> => {
+      const filePath = options?.filePath ?? options?.file_path;
+      const returnData = options?.returnData ?? options?.return_data ?? false;
+
+      if (filePath) {
+        const resolvedPath = path.resolve(filePath);
+        const dir = path.dirname(resolvedPath);
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+
+        const fileStream = fs.createWriteStream(resolvedPath);
+        for await (const chunk of api.streamDownload(datasetId, options)) {
+          fileStream.write(chunk);
+        }
+        await new Promise<void>((resolve, reject) => {
+          fileStream.end((err?: Error | null) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+
+        if (returnData) {
+          const content = fs.readFileSync(resolvedPath, 'utf-8');
+          try {
+            return JSON.parse(content);
+          } catch {
+            return content;
+          }
+        }
+        return resolvedPath;
+      }
+
+      const chunks: Uint8Array[] = [];
+      let totalLen = 0;
+      for await (const chunk of api.streamDownload(datasetId, options)) {
+        chunks.push(chunk);
+        totalLen += chunk.length;
+      }
+
+      const result = new Uint8Array(totalLen);
+      let offset = 0;
+      for (const chunk of chunks) {
+        result.set(chunk, offset);
+        offset += chunk.length;
+      }
+
+      if (returnData) {
+        const text = new TextDecoder().decode(result);
+        try {
+          return JSON.parse(text);
+        } catch {
+          return result;
+        }
+      }
+
+      return result;
+    },
     generatePlan: async (request: { prompt: string }): Promise<unknown> =>
       sendRequest(apiKey, config, {
         method: 'POST',
@@ -536,6 +738,8 @@ const createDatasetsApi = (apiKey: string, config: Config) => {
         { id: dataId },
       ),
   };
+
+  return api;
 };
 
 const createFinetuningApi = (apiKey: string, config: Config) => ({
