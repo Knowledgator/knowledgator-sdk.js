@@ -25,7 +25,6 @@ const CreateDatasetRequestSchema = v.object({
   name: v.pipe(v.string(), v.minLength(1), v.maxLength(64), v.regex(DATASET_NAME_REGEX)),
   type: ServiceTypeEnum,
   format: DatasetFormatEnum,
-  description: v.optional(v.string()),
   short_description: v.optional(v.string()),
   file: v.optional(v.any()),
   filePath: v.optional(v.string()),
@@ -36,7 +35,6 @@ const UpdateDatasetRequestSchema = v.object({
   name: v.optional(
     v.pipe(v.string(), v.minLength(1), v.maxLength(64), v.regex(DATASET_NAME_REGEX)),
   ),
-  description: v.optional(v.string()),
   short_description: v.optional(v.string()),
 });
 
@@ -63,7 +61,6 @@ const CreateDataRequestSchema = v.object({
   name: v.pipe(v.string(), v.minLength(1), v.maxLength(64), v.regex(DATASET_NAME_REGEX)),
   type: ServiceTypeEnum,
   format: DatasetFormatEnum,
-  description: v.optional(v.string()),
   short_description: v.optional(v.string()),
   file: v.optional(v.any()),
   filePath: v.optional(v.string()),
@@ -74,7 +71,6 @@ const UpdateDataRequestSchema = v.object({
   name: v.optional(
     v.pipe(v.string(), v.minLength(1), v.maxLength(64), v.regex(DATASET_NAME_REGEX)),
   ),
-  description: v.optional(v.string()),
   short_description: v.optional(v.string()),
 });
 

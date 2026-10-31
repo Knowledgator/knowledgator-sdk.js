@@ -17,9 +17,17 @@ const DatasetSchema = v.pipe(
     examples_count: v.optional(v.number()),
   }),
   v.transform((dataset) => ({
-    ...dataset,
-    description: dataset.description ?? dataset.short_description,
+    id: dataset.id,
+    name: dataset.name,
+    type: dataset.type,
+    format: dataset.format,
+    status: dataset.status,
     short_description: dataset.short_description ?? dataset.description,
+    created_at: dataset.created_at,
+    updated_at: dataset.updated_at,
+    file_count: dataset.file_count,
+    total_size: dataset.total_size,
+    examples_count: dataset.examples_count,
   })),
 );
 
@@ -99,9 +107,17 @@ const DataSchema = v.pipe(
     files: v.optional(v.array(DataFileSchema)),
   }),
   v.transform((dataItem) => ({
-    ...dataItem,
-    description: dataItem.description ?? dataItem.short_description,
+    id: dataItem.id,
+    name: dataItem.name,
+    type: dataItem.type,
+    format: dataItem.format,
     short_description: dataItem.short_description ?? dataItem.description,
+    created_by_oauth_id: dataItem.created_by_oauth_id,
+    created_at: dataItem.created_at,
+    updated_at: dataItem.updated_at,
+    file_count: dataItem.file_count,
+    total_size: dataItem.total_size,
+    files: dataItem.files,
   })),
 );
 

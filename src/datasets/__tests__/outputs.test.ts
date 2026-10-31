@@ -31,7 +31,7 @@ describe('Datasets Outputs Validation', () => {
       expect(result.limit).toBe(100);
       expect(result.datasets).toHaveLength(1);
       expect(result.datasets[0].id).toBe('6babd48a-2256-4466-b16b-9fd45ba59688');
-      expect(result.datasets[0].description).toBe('Dataset short description');
+      expect(result.datasets[0].short_description).toBe('Dataset short description');
     });
 
     it('should parse legacy payload containing "datasets" array', () => {
@@ -55,7 +55,7 @@ describe('Datasets Outputs Validation', () => {
 
       const result = validateListDatasetsResults(legacyPayload);
       expect(result.total).toBe(1);
-      expect(result.datasets[0].description).toBe('Explicit description');
+      expect(result.datasets[0].short_description).toBe('Explicit description');
     });
   });
 
@@ -118,7 +118,7 @@ describe('Datasets Outputs Validation', () => {
       expect(result.limit).toBe(100);
       expect(result.data).toHaveLength(1);
       expect(result.data[0].id).toBe('data-xyz');
-      expect(result.data[0].description).toBe('Raw data short description');
+      expect(result.data[0].short_description).toBe('Raw data short description');
       expect(result.data[0].files).toHaveLength(1);
       expect(result.data[0].files![0].size).toBe(1024);
     });

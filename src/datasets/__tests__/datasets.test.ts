@@ -54,12 +54,12 @@ const createDatasetRequest: CreateDatasetRequest = {
   name: 'test-dataset',
   type: 'ner',
   format: 'jsonl',
-  description: 'Test dataset',
+  short_description: 'Test dataset',
 };
 
 const updateDatasetRequest: UpdateDatasetRequest = {
   name: 'updated-dataset',
-  description: 'Updated description',
+  short_description: 'Updated description',
 };
 
 const uploadDatasetRequest: UploadDatasetRequest = {
@@ -77,6 +77,7 @@ const dataset: Dataset = {
   type: 'ner',
   format: 'jsonl',
   status: 'ready',
+  short_description: 'Test dataset',
   created_at: '2024-01-01T00:00:00Z',
   updated_at: '2024-01-01T00:00:00Z',
 };
@@ -259,7 +260,7 @@ describe('Datasets API', () => {
       expect(formData.get('name')).toBe('test-dataset');
       expect(formData.get('type')).toBe('ner');
       expect(formData.get('format')).toBe('jsonl');
-      expect(formData.get('description')).toBe('Test dataset');
+      expect(formData.get('short_description')).toBe('Test dataset');
 
       expect(mockValidateDatasetCreationResults).toHaveBeenCalledWith(datasetCreationResults);
       expect(result).toBe(datasetCreationResults);

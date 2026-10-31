@@ -47,12 +47,12 @@ const createDataRequest: CreateDataRequest = {
   name: 'test-data',
   type: 'ner',
   format: 'jsonl',
-  description: 'Test data',
+  short_description: 'Test data',
 };
 
 const updateDataRequest: UpdateDataRequest = {
   name: 'updated-data',
-  description: 'Updated description',
+  short_description: 'Updated description',
 };
 
 const uploadDataRequest: UploadDataRequest = {
@@ -210,7 +210,7 @@ describe('Data API', () => {
       expect(formData.get('name')).toBe('test-data');
       expect(formData.get('type')).toBe('ner');
       expect(formData.get('format')).toBe('jsonl');
-      expect(formData.get('description')).toBe('Test data');
+      expect(formData.get('short_description')).toBe('Test data');
 
       expect(mockValidateDataCreationResults).toHaveBeenCalledWith(dataCreationResults);
       expect(result).toBe(dataCreationResults);

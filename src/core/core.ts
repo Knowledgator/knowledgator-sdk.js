@@ -401,13 +401,8 @@ const createDatasetsApi = (apiKey: string, config: Config) => {
       formData.append('name', data.name);
       formData.append('type', data.type);
       formData.append('format', data.format);
-      if (data.description) {
-        formData.append('description', data.description);
-      }
       if (data.short_description) {
         formData.append('short_description', data.short_description);
-      } else if (data.description) {
-        formData.append('short_description', data.description);
       }
     }
 
