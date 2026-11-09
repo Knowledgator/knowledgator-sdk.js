@@ -28,5 +28,10 @@ export const omitHeaders = (
 };
 
 export const getModelIdHeader = (modelId?: string): Record<string, string> | undefined => {
-  return modelId ? { 'KnowledgatorAPI-Model-ID': modelId } : undefined;
+  return modelId
+    ? {
+        'KnowledgatorAPI-Model-ID': modelId,
+        'X-Model-Id': modelId,
+      }
+    : undefined;
 };
