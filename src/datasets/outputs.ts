@@ -32,22 +32,22 @@ const DatasetSchema = v.pipe(
 );
 
 const ListDatasetsResultsSchema = v.pipe(
-  v.object({
+  v.looseObject({
     data: v.optional(v.array(DatasetSchema)),
     datasets: v.optional(v.array(DatasetSchema)),
-    total: v.number(),
+    total: v.optional(v.number(), 0),
     offset: v.optional(v.number(), 0),
     limit: v.optional(v.number(), 100),
   }),
   v.transform((raw) => ({
     datasets: raw.data ?? raw.datasets ?? [],
-    total: raw.total,
-    offset: raw.offset,
-    limit: raw.limit,
+    total: raw.total ?? 0,
+    offset: raw.offset ?? 0,
+    limit: raw.limit ?? 100,
   })),
 );
 
-const DatasetCreationResultsSchema = v.object({
+const DatasetCreationResultsSchema = v.looseObject({
   id: v.string(),
   name: v.optional(v.string()),
   type: v.optional(v.string()),
@@ -56,7 +56,7 @@ const DatasetCreationResultsSchema = v.object({
   created_at: v.optional(v.string()),
 });
 
-const FormatTagSchema = v.object({
+const FormatTagSchema = v.looseObject({
   name: v.string(),
   description: v.optional(v.string()),
 });
@@ -64,10 +64,10 @@ const FormatTagSchema = v.object({
 const FormatItemSchema = v.union([v.string(), FormatTagSchema]);
 
 const ListFormatsResultsSchema = v.pipe(
-  v.object({
+  v.looseObject({
     data: v.optional(v.array(FormatItemSchema)),
     formats: v.optional(v.array(FormatItemSchema)),
-    total: v.number(),
+    total: v.optional(v.number(), 0),
     offset: v.optional(v.number(), 0),
     limit: v.optional(v.number(), 100),
   }),
@@ -76,9 +76,9 @@ const ListFormatsResultsSchema = v.pipe(
     const formats = items.map((item) => (typeof item === 'string' ? { name: item } : item));
     return {
       formats,
-      total: raw.total,
-      offset: raw.offset,
-      limit: raw.limit,
+      total: raw.total ?? 0,
+      offset: raw.offset ?? 0,
+      limit: raw.limit ?? 100,
     };
   }),
 );
@@ -121,12 +121,24 @@ const DataSchema = v.pipe(
   })),
 );
 
-const ListDataResultsSchema = v.object({
-  data: v.array(DataSchema),
-  total: v.number(),
-  offset: v.optional(v.number(), 0),
-  limit: v.optional(v.number(), 100),
-});
+const ListDataResultsSchema = v.pipe(
+  v.looseObject({
+    data: v.optional(v.array(DataSchema)),
+    results: v.optional(v.array(DataSchema)),
+    total: v.optional(v.number(), 0),
+    offset: v.optional(v.number(), 0),
+    limit: v.optional(v.number(), 100),
+  }),
+  v.transform((raw) => {
+    const items = raw.data ?? raw.results ?? [];
+    return {
+      data: items,
+      total: raw.total ?? items.length,
+      offset: raw.offset ?? 0,
+      limit: raw.limit ?? 100,
+    };
+  }),
+);
 
 const DataCreationResultsSchema = v.object({
   id: v.string(),

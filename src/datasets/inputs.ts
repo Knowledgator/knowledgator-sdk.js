@@ -26,6 +26,7 @@ const CreateDatasetRequestSchema = v.object({
   type: ServiceTypeEnum,
   format: DatasetFormatEnum,
   short_description: v.optional(v.string()),
+  parent_dataset_id: v.optional(v.string()),
   file: v.optional(v.any()),
   filePath: v.optional(v.string()),
   file_path: v.optional(v.string()),
