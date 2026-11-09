@@ -11,15 +11,16 @@ const ComprehendRequestSchema = v.object({
   threshold: v.optional(v.pipe(v.number(), v.minValue(0.0), v.maxValue(1.0)), 0.5),
   examples: v.optional(v.array(ComprehendRequestExampleSchema)),
   model_id: v.optional(v.string()),
+  adapter_id: v.optional(v.string()),
 });
 
 const ExtractBaseRequestSchema = v.object({
   text: v.pipe(v.string(), v.minLength(1)),
-  labels: v.optional(v.array(v.string())),
-  entities: v.optional(v.array(v.string())),
+  entities: v.pipe(v.array(v.string()), v.minLength(1)),
   threshold: v.optional(v.pipe(v.number(), v.minValue(0.0), v.maxValue(1.0)), 0.5),
   prompt: v.optional(v.string()),
   model_id: v.optional(v.string()),
+  adapter_id: v.optional(v.string()),
 });
 
 const ExtractRelationsRequestRuleSchema = v.object({
@@ -31,11 +32,12 @@ const ExtractRelationsRequestRuleSchema = v.object({
 const ExtractRelationsRequestSchema = v.object({
   text: v.pipe(v.string(), v.minLength(1)),
   relations: v.pipe(v.array(v.string()), v.minLength(1)),
-  labels: v.optional(v.array(v.string())),
+  entities: v.pipe(v.array(v.string()), v.minLength(1)),
   threshold: v.optional(v.pipe(v.number(), v.minValue(0.0), v.maxValue(1.0)), 0.5),
   rules: v.optional(v.array(ExtractRelationsRequestRuleSchema)),
   prompt: v.optional(v.string()),
   model_id: v.optional(v.string()),
+  adapter_id: v.optional(v.string()),
 });
 
 const ExtractSummaryRequestSchema = v.object({
@@ -43,6 +45,7 @@ const ExtractSummaryRequestSchema = v.object({
   threshold: v.optional(v.pipe(v.number(), v.minValue(0.0), v.maxValue(1.0)), 0.5),
   prompt: v.optional(v.string()),
   model_id: v.optional(v.string()),
+  adapter_id: v.optional(v.string()),
 });
 
 export type ComprehendRequest = v.InferInput<typeof ComprehendRequestSchema>;
@@ -56,16 +59,8 @@ export type ExtractSummaryRequest = v.InferInput<typeof ExtractSummaryRequestSch
 export const validateComprehendRequest = (data: unknown): ComprehendRequest =>
   v.parse(ComprehendRequestSchema, data);
 
-export const validateExtractBaseRequest = (data: unknown): ExtractBaseRequest => {
-  const parsed = v.parse(ExtractBaseRequestSchema, data);
-  if (
-    (!parsed.labels || parsed.labels.length === 0) &&
-    (!parsed.entities || parsed.entities.length === 0)
-  ) {
-    throw new Error('At least one label or entity must be provided');
-  }
-  return parsed;
-};
+export const validateExtractBaseRequest = (data: unknown): ExtractBaseRequest =>
+  v.parse(ExtractBaseRequestSchema, data);
 
 export const validateExtractRelationsRequest = (data: unknown): ExtractRelationsRequest =>
   v.parse(ExtractRelationsRequestSchema, data);
@@ -92,6 +87,7 @@ const InstructItRequestSchema = v.object({
   files: v.optional(v.array(FileMetadataSchema)),
   output_type: v.optional(v.string()),
   model_id: v.optional(v.string()),
+  adapter_id: v.optional(v.string()),
 });
 
 export type InstructItRequest = v.InferInput<typeof InstructItRequestSchema>;

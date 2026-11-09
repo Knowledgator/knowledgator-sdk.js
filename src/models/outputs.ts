@@ -71,14 +71,21 @@ export const validateExtractBaseResults = (data: unknown): ExtractBaseResults =>
   return v.parse(ExtractBaseResultsSchema, data);
 };
 
-export const validateExtractRelationsResults = (data: unknown): ExtractRelationsResults =>
-  v.parse(ExtractRelationsResultsSchema, data);
+export const validateExtractRelationsResults = (data: unknown): ExtractRelationsResults => {
+  if (data && typeof data === 'object' && !('results' in data) && 'outputs' in data) {
+    return v.parse(ExtractRelationsResultsSchema, {
+      ...(data as object),
+      results: (data as Record<string, unknown>).outputs,
+    });
+  }
+  return v.parse(ExtractRelationsResultsSchema, data);
+};
 
 export const validateExtractSummaryResults = (data: unknown): ExtractSummaryResults =>
   v.parse(ExtractSummaryResultsSchema, data);
 
 const InstructItResultsSchema = v.object({
-  outputs: v.union([v.string(), v.record(v.string(), v.any()), v.array(v.any())]),
+  outputs: v.union([v.string(), v.array(v.any()), v.record(v.string(), v.any())]),
   parsed: v.optional(v.boolean()),
 });
 
