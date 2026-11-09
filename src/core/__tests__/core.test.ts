@@ -39,6 +39,7 @@ import {
   RAPID_API_SERVERS,
 } from '../defaults';
 import type { EndpointConfig, ServerConfig } from '../types';
+import { getModelIdHeader } from '../utils';
 
 jest.mock('../../client/http');
 jest.mock('../../models/inputs', () => {
@@ -60,11 +61,12 @@ const comprehendRequest: ComprehendRequest = {
 };
 const extractBaseRequest: ExtractBaseRequest = {
   text: '',
-  labels: [],
+  entities: [],
 };
 const extractRelationsRequest: ExtractRelationsRequest = {
   text: '',
   relations: [],
+  entities: [],
 };
 const extractSummaryRequest: ExtractSummaryRequest = {
   text: '',
@@ -163,6 +165,7 @@ describe(createClient.name, () => {
       expect(client).toHaveProperty('comprehend');
       expect(client).toHaveProperty('extract');
       expect(client).toHaveProperty('instruct');
+      expect(client).toHaveProperty('finetuning');
       expect(client.comprehend).toHaveProperty('it');
       expect(client.extract).toHaveProperty('it');
       expect(client.extract).toHaveProperty('relations');
@@ -367,13 +370,8 @@ describe(createClient.name, () => {
         const result = await client.extract.it(extractBaseRequest);
 
         expect(mockValidateExtractBaseRequest).toHaveBeenCalledWith(extractBaseRequest);
-        const { labels, entities, ...rest } = extractBaseRequest;
-        const expectedData = {
-          ...rest,
-          entities: entities ?? labels ?? [],
-        };
         expect(mockHttpClient.post).toHaveBeenCalledWith('/inference/extract/', {
-          body: JSON.stringify(expectedData),
+          body: JSON.stringify(extractBaseRequest),
         });
         expect(mockValidateExtractBaseResults).toHaveBeenCalledWith(extractBaseResults);
         expect(result).toBe(extractBaseResults);
@@ -895,6 +893,7 @@ describe(createClient.name, () => {
             baseHeaders: {
               'Content-Type': 'application/json',
               'KnowledgatorAPI-Key': 'test-api-key',
+              Authorization: 'Bearer test-api-key',
             },
           }),
         );
@@ -912,6 +911,7 @@ describe(createClient.name, () => {
             baseHeaders: {
               'Content-Type': 'application/json',
               'KnowledgatorAPI-Key': 'test-api-key',
+              Authorization: 'Bearer test-api-key',
             },
           }),
         );
@@ -928,6 +928,7 @@ describe(createClient.name, () => {
             baseUrl: DEFAULT_SERVERS.instruct,
             baseHeaders: {
               'KnowledgatorAPI-Key': 'test-api-key',
+              Authorization: 'Bearer test-api-key',
               // Ensure Content-Type is removed so browser/client can set multipart/form-data boundary
               'Content-Type': undefined,
             },
@@ -1038,6 +1039,74 @@ describe(createClient.name, () => {
           }),
         );
       });
+    });
+  });
+
+  describe('dual headers and environment variable resolution', () => {
+    const originalEnv = process.env;
+
+    beforeEach(() => {
+      process.env = { ...originalEnv };
+    });
+
+    afterAll(() => {
+      process.env = originalEnv;
+    });
+
+    it('should generate dual auth headers in getDefaultHeaders', () => {
+      const headers = getDefaultHeaders('my-secret-key');
+      expect(headers).toEqual({
+        'Content-Type': 'application/json',
+        'KnowledgatorAPI-Key': 'my-secret-key',
+        Authorization: 'Bearer my-secret-key',
+      });
+
+      const bearerHeaders = getDefaultHeaders('Bearer already-prefixed');
+      expect(bearerHeaders['Authorization']).toBe('Bearer already-prefixed');
+    });
+
+    it('should generate dual model headers in getModelIdHeader', () => {
+      const headers = getModelIdHeader('model-xyz');
+      expect(headers).toEqual({
+        'KnowledgatorAPI-Model-ID': 'model-xyz',
+        'X-Model-Id': 'model-xyz',
+      });
+
+      expect(getModelIdHeader(undefined)).toBeUndefined();
+    });
+
+    it('should auto-resolve apiKey from process.env.KG_API_KEY when no apiKey argument is passed', async () => {
+      process.env.KG_API_KEY = 'ambient-env-key';
+      const client = createClient();
+
+      mockResponse.json.mockResolvedValue(comprehendResults);
+      await client.comprehend.it(comprehendRequest);
+
+      expect(mockCreateHttpClient).toHaveBeenCalledWith(
+        expect.objectContaining({
+          baseHeaders: expect.objectContaining({
+            'KnowledgatorAPI-Key': 'ambient-env-key',
+            Authorization: 'Bearer ambient-env-key',
+          }),
+        }),
+      );
+    });
+
+    it('should support config-only createClient(config) signature with env fallback', async () => {
+      process.env.KG_API_KEY = 'config-only-key';
+      const client = createClient({ debug: true });
+
+      mockResponse.json.mockResolvedValue(comprehendResults);
+      await client.comprehend.it(comprehendRequest);
+
+      expect(mockCreateHttpClient).toHaveBeenCalledWith(
+        expect.objectContaining({
+          baseHeaders: expect.objectContaining({
+            'KnowledgatorAPI-Key': 'config-only-key',
+            Authorization: 'Bearer config-only-key',
+          }),
+        }),
+      );
     });
   });
 });

@@ -37,10 +37,16 @@ export const DEFAULT_SERVERS: Required<ServerConfig> = {
   inference: 'https://api.knowledgator.com',
 } as const;
 
-export const getDefaultHeaders = (apiKey: string): Record<string, string> => ({
-  'Content-Type': 'application/json',
-  'KnowledgatorAPI-Key': apiKey,
-});
+export const getDefaultHeaders = (apiKey?: string): Record<string, string> => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (apiKey) {
+    headers['KnowledgatorAPI-Key'] = apiKey;
+    headers['Authorization'] = apiKey.startsWith('Bearer ') ? apiKey : `Bearer ${apiKey}`;
+  }
+  return headers;
+};
 
 export const RAPID_API_SERVERS: ServerConfig = {
   comprehend: 'https://comprehend-it.p.rapidapi.com',

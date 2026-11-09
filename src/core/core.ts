@@ -322,7 +322,7 @@ const sendInstructRequest = async <TOutput>(
     serviceKey,
     endpointKey,
     body: { type: 'formData', data: formData },
-    headers: getModelIdHeader(data.model_id),
+    headers: getModelIdHeader(data.adapter_id ?? data.model_id),
     responseValidator: validator,
   });
 };
@@ -334,44 +334,41 @@ const createComprehendApi = (apiKey: string, config: Config) => ({
       serviceKey: 'comprehend',
       endpointKey: 'comprehend',
       body: { type: 'json', data: validateComprehendRequest(request) },
-      headers: getModelIdHeader(request.model_id),
+      headers: getModelIdHeader(request.adapter_id ?? request.model_id),
       responseValidator: validateComprehendResults,
     }),
 });
 
 const createExtractApi = (apiKey: string, config: Config) => ({
   it: async (request: ExtractBaseRequest): Promise<ExtractBaseResults> => {
-    const validated = validateExtractBaseRequest(request);
-    const { labels, entities, ...rest } = validated;
-    const data = {
-      ...rest,
-      entities: entities ?? labels ?? [],
-    };
+    const data = validateExtractBaseRequest(request);
     return sendRequest(apiKey, config, {
       method: 'POST',
       serviceKey: 'extract',
       endpointKey: 'extract',
       body: { type: 'json', data },
-      headers: getModelIdHeader(request.model_id),
+      headers: getModelIdHeader(request.adapter_id ?? request.model_id),
       responseValidator: validateExtractBaseResults,
     });
   },
-  relations: async (request: ExtractRelationsRequest): Promise<ExtractRelationsResults> =>
-    sendRequest(apiKey, config, {
+  relations: async (request: ExtractRelationsRequest): Promise<ExtractRelationsResults> => {
+    const data = validateExtractRelationsRequest(request);
+    return sendRequest(apiKey, config, {
       method: 'POST',
       serviceKey: 'extract',
       endpointKey: 'extractRelations',
-      body: { type: 'json', data: validateExtractRelationsRequest(request) },
-      headers: getModelIdHeader(request.model_id),
+      body: { type: 'json', data },
+      headers: getModelIdHeader(request.adapter_id ?? request.model_id),
       responseValidator: validateExtractRelationsResults,
-    }),
+    });
+  },
   summary: async (request: ExtractSummaryRequest): Promise<ExtractSummaryResults> =>
     sendRequest(apiKey, config, {
       method: 'POST',
       serviceKey: 'extract',
       endpointKey: 'extractSummary',
       body: { type: 'json', data: validateExtractSummaryRequest(request) },
-      headers: getModelIdHeader(request.model_id),
+      headers: getModelIdHeader(request.adapter_id ?? request.model_id),
       responseValidator: validateExtractSummaryResults,
     }),
 });
@@ -403,6 +400,9 @@ const createDatasetsApi = (apiKey: string, config: Config) => {
       formData.append('format', data.format);
       if (data.short_description) {
         formData.append('short_description', data.short_description);
+      }
+      if ('parent_dataset_id' in data && data.parent_dataset_id) {
+        formData.append('parent_dataset_id', data.parent_dataset_id);
       }
     }
 
@@ -836,26 +836,63 @@ const createFinetuningApi = (apiKey: string, config: Config) => ({
   },
 });
 
-export const createClient = (apiKey: string, config?: Config) => {
+export interface Client {
+  comprehend: ReturnType<typeof createComprehendApi>;
+  extract: ReturnType<typeof createExtractApi>;
+  instruct: ReturnType<typeof createInstructApi>;
+  datasets: ReturnType<typeof createDatasetsApi>;
+  finetuning: ReturnType<typeof createFinetuningApi>;
+  /**
+   * Create a client for an Open Model (standalone full model).
+   *
+   * Invokes POST /inference/{model_id}/ or POST /inference/{model_id}/{method}/.
+   *
+   * @param modelId - The Open Model ID (e.g. 'm-d9be7ede307943439a30c6f814026566')
+   * @param method - Optional method name to use for predictions (e.g. 'relations')
+   * @returns An initialized OpenModel instance.
+   */
+  model: (modelId: string, method?: string) => ReturnType<typeof createOpenModelApi>;
+}
+
+export interface CreateClient {
+  (config?: Config): Client;
+  (apiKey?: string, config?: Config): Client;
+}
+
+export const createClient: CreateClient = (
+  apiKeyOrConfig?: string | Config,
+  config?: Config,
+): Client => {
+  let resolvedApiKey = typeof apiKeyOrConfig === 'string' ? apiKeyOrConfig : '';
+  const inputConfig = typeof apiKeyOrConfig === 'object' ? apiKeyOrConfig : config;
+
+  if (!resolvedApiKey && typeof process !== 'undefined' && process.env) {
+    resolvedApiKey =
+      process.env.KG_API_KEY ||
+      process.env.KG_MCP_API_KEY ||
+      process.env.KNOWLEDGATOR_API_KEY ||
+      '';
+  }
+
   const finalConfig: Config = {
     ...DEFAULT_CONFIG,
-    ...config,
+    ...inputConfig,
     retryPolicy: {
       ...DEFAULT_CONFIG.retryPolicy,
-      ...config?.retryPolicy,
+      ...inputConfig?.retryPolicy,
     },
-    logger: config?.logger || createDefaultLogger(config?.debug ?? DEFAULT_CONFIG.debug),
+    logger: inputConfig?.logger || createDefaultLogger(inputConfig?.debug ?? DEFAULT_CONFIG.debug),
   };
 
   finalConfig.logger?.debug('SDK client initialized', { finalConfig });
 
   return {
-    comprehend: createComprehendApi(apiKey, finalConfig),
-    extract: createExtractApi(apiKey, finalConfig),
-    instruct: createInstructApi(apiKey, finalConfig),
-    datasets: createDatasetsApi(apiKey, finalConfig),
-    finetuning: createFinetuningApi(apiKey, finalConfig),
+    comprehend: createComprehendApi(resolvedApiKey, finalConfig),
+    extract: createExtractApi(resolvedApiKey, finalConfig),
+    instruct: createInstructApi(resolvedApiKey, finalConfig),
+    datasets: createDatasetsApi(resolvedApiKey, finalConfig),
+    finetuning: createFinetuningApi(resolvedApiKey, finalConfig),
     model: (modelId: string, method?: string) =>
-      createOpenModelApi(sendRequest, apiKey, finalConfig, modelId, method),
+      createOpenModelApi(sendRequest, resolvedApiKey, finalConfig, modelId, method),
   };
 };
