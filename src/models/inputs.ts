@@ -1,27 +1,14 @@
 import * as v from 'valibot';
 
-const ComprehendRequestExampleSchema = v.object({
-  text: v.pipe(v.string(), v.minLength(1)),
-  labels: v.pipe(v.array(v.string()), v.minLength(1)),
-});
+export {
+  type ComprehendRequest,
+  type ExtractRequest,
+  validateComprehendRequest,
+  validateExtractRequest,
+} from './models';
 
-const ComprehendRequestSchema = v.object({
-  text: v.pipe(v.string(), v.minLength(1)),
-  labels: v.pipe(v.array(v.string()), v.minLength(1)),
-  threshold: v.optional(v.pipe(v.number(), v.minValue(0.0), v.maxValue(1.0)), 0.5),
-  examples: v.optional(v.array(ComprehendRequestExampleSchema)),
-  model_id: v.optional(v.string()),
-  adapter_id: v.optional(v.string()),
-});
-
-const ExtractBaseRequestSchema = v.object({
-  text: v.pipe(v.string(), v.minLength(1)),
-  entities: v.pipe(v.array(v.string()), v.minLength(1)),
-  threshold: v.optional(v.pipe(v.number(), v.minValue(0.0), v.maxValue(1.0)), 0.5),
-  prompt: v.optional(v.string()),
-  model_id: v.optional(v.string()),
-  adapter_id: v.optional(v.string()),
-});
+// Backwards-compatible alias for type imports if any external consumer used ExtractBaseRequest
+export type { ExtractRequest as ExtractBaseRequest } from './models';
 
 const ExtractRelationsRequestRuleSchema = v.object({
   relation: v.pipe(v.string(), v.minLength(1)),
@@ -48,19 +35,9 @@ const ExtractSummaryRequestSchema = v.object({
   adapter_id: v.optional(v.string()),
 });
 
-export type ComprehendRequest = v.InferInput<typeof ComprehendRequestSchema>;
-
-export type ExtractBaseRequest = v.InferInput<typeof ExtractBaseRequestSchema>;
-
 export type ExtractRelationsRequest = v.InferInput<typeof ExtractRelationsRequestSchema>;
 
 export type ExtractSummaryRequest = v.InferInput<typeof ExtractSummaryRequestSchema>;
-
-export const validateComprehendRequest = (data: unknown): ComprehendRequest =>
-  v.parse(ComprehendRequestSchema, data);
-
-export const validateExtractBaseRequest = (data: unknown): ExtractBaseRequest =>
-  v.parse(ExtractBaseRequestSchema, data);
 
 export const validateExtractRelationsRequest = (data: unknown): ExtractRelationsRequest =>
   v.parse(ExtractRelationsRequestSchema, data);

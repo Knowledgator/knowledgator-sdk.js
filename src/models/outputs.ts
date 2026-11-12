@@ -1,15 +1,195 @@
 import * as v from 'valibot';
 
-const ComprehendResultSchema = v.object({
-  label: v.string(),
-  score: v.number(),
+export const ClassifyTaskOutputSchema = v.object({
+  type: v.optional(v.literal('classify'), 'classify'),
+  value: v.optional(v.union([v.string(), v.array(v.string())])),
+  scores: v.optional(v.record(v.string(), v.number())),
+  threshold: v.optional(v.nullable(v.number())),
+  adapter_id: v.optional(v.nullable(v.string())),
 });
 
-const ComprehendResultsSchema = v.object({
-  results: v.array(ComprehendResultSchema),
+export type ClassifyTaskOutput = v.InferOutput<typeof ClassifyTaskOutputSchema>;
+
+export const BooleanTaskOutputSchema = v.object({
+  type: v.optional(v.literal('boolean'), 'boolean'),
+  value: v.optional(v.boolean()),
+  truth_score: v.optional(v.nullable(v.number())),
+  score: v.optional(v.nullable(v.number())),
+  scores: v.optional(v.record(v.string(), v.number())),
+  threshold: v.optional(v.nullable(v.number())),
+  adapter_id: v.optional(v.nullable(v.string())),
 });
 
-const EntitySchema = v.object({
+export type BooleanTaskOutput = v.InferOutput<typeof BooleanTaskOutputSchema>;
+
+export const ScoreTaskOutputSchema = v.object({
+  type: v.optional(v.literal('score'), 'score'),
+  value: v.optional(v.string()),
+  scores: v.optional(v.record(v.string(), v.number())),
+  threshold: v.optional(v.nullable(v.number())),
+  adapter_id: v.optional(v.nullable(v.string())),
+});
+
+export type ScoreTaskOutput = v.InferOutput<typeof ScoreTaskOutputSchema>;
+
+export const SpanEntitySchema = v.object({
+  text: v.optional(v.string()),
+  span: v.optional(v.string()),
+  label: v.optional(v.string()),
+  entity: v.optional(v.string()),
+  start: v.optional(v.number()),
+  end: v.optional(v.number()),
+  score: v.optional(v.number()),
+  source: v.optional(v.string()),
+});
+
+export type SpanEntity = v.InferOutput<typeof SpanEntitySchema>;
+
+export const SpanTaskOutputSchema = v.object({
+  type: v.optional(v.literal('span'), 'span'),
+  value: v.array(SpanEntitySchema),
+  threshold: v.optional(v.nullable(v.number())),
+});
+
+export type SpanTaskOutput = v.InferOutput<typeof SpanTaskOutputSchema>;
+
+export const RelationEntitySchema = v.object({
+  head: SpanEntitySchema,
+  tail: SpanEntitySchema,
+  relation: v.optional(v.string()),
+  label: v.optional(v.string()),
+  score: v.optional(v.number()),
+});
+
+export type RelationEntity = v.InferOutput<typeof RelationEntitySchema>;
+
+export const RelationTaskOutputSchema = v.object({
+  type: v.optional(v.literal('relation'), 'relation'),
+  value: v.array(RelationEntitySchema),
+  threshold: v.optional(v.nullable(v.number())),
+});
+
+export type RelationTaskOutput = v.InferOutput<typeof RelationTaskOutputSchema>;
+
+export type TaskOutput =
+  | ClassifyTaskOutput
+  | BooleanTaskOutput
+  | ScoreTaskOutput
+  | SpanTaskOutput
+  | RelationTaskOutput
+  | Record<string, unknown>;
+
+export interface ComprehendResults {
+  results: Record<string, TaskOutput>;
+  outputs: Record<string, TaskOutput>;
+  raw?: Record<string, unknown>;
+  usage?: Record<string, unknown>;
+  input_text?: string;
+  threshold?: number;
+  status?: string;
+  [key: string]: unknown;
+}
+
+export interface ExtractResults {
+  results: Record<string, TaskOutput>;
+  outputs: Record<string, TaskOutput>;
+  raw?: Record<string, unknown>;
+  usage?: Record<string, unknown>;
+  input_text?: string;
+  threshold?: number;
+  status?: string;
+  [key: string]: unknown;
+}
+
+export const validateComprehendResults = (data: unknown): ComprehendResults => {
+  if (!data || typeof data !== 'object') {
+    throw new Error(
+      "Unexpected response shape: expected task-keyed dictionary in 'outputs'/'results'",
+    );
+  }
+
+  const raw = data as Record<string, unknown>;
+  const tasksRaw = raw.outputs ?? raw.results;
+
+  if (!tasksRaw || typeof tasksRaw !== 'object' || Array.isArray(tasksRaw)) {
+    throw new Error(
+      "Unexpected response shape: expected task-keyed dictionary in 'outputs'/'results'",
+    );
+  }
+
+  const res: ComprehendResults = {
+    results: tasksRaw as Record<string, TaskOutput>,
+    outputs: tasksRaw as Record<string, TaskOutput>,
+    raw,
+    usage: raw.usage as Record<string, unknown> | undefined,
+    status: (raw.status as string) || 'ok',
+  };
+
+  for (const [key, val] of Object.entries(tasksRaw)) {
+    if (!(key in res)) {
+      res[key] = val;
+    }
+  }
+
+  return res;
+};
+
+export const validateExtractResults = (data: unknown): ExtractResults => {
+  if (!data || typeof data !== 'object') {
+    throw new Error(
+      "Unexpected response shape: expected task-keyed dictionary in 'outputs'/'results'",
+    );
+  }
+
+  const raw = data as Record<string, unknown>;
+  const tasksRaw = raw.outputs ?? raw.results;
+
+  if (!tasksRaw || typeof tasksRaw !== 'object' || Array.isArray(tasksRaw)) {
+    throw new Error(
+      "Unexpected response shape: expected task-keyed dictionary in 'outputs'/'results'",
+    );
+  }
+
+  const res: ExtractResults = {
+    results: tasksRaw as Record<string, TaskOutput>,
+    outputs: tasksRaw as Record<string, TaskOutput>,
+    raw,
+    usage: raw.usage as Record<string, unknown> | undefined,
+    status: (raw.status as string) || 'ok',
+  };
+
+  for (const [key, val] of Object.entries(tasksRaw)) {
+    if (val && typeof val === 'object' && 'value' in (val as Record<string, unknown>)) {
+      const vObj = val as Record<string, unknown>;
+      if (Array.isArray(vObj.value)) {
+        for (const item of vObj.value) {
+          if (item && typeof item === 'object') {
+            const spanItem = item as Record<string, unknown>;
+            if (spanItem.text === undefined && spanItem.span !== undefined) {
+              spanItem.text = spanItem.span;
+            } else if (spanItem.span === undefined && spanItem.text !== undefined) {
+              spanItem.span = spanItem.text;
+            }
+            if (spanItem.label === undefined && spanItem.entity !== undefined) {
+              spanItem.label = spanItem.entity;
+            } else if (spanItem.entity === undefined && spanItem.label !== undefined) {
+              spanItem.entity = spanItem.label;
+            }
+          }
+        }
+      }
+    }
+    if (!(key in res)) {
+      res[key] = val;
+    }
+  }
+
+  return res;
+};
+
+// --- Legacy extract.relations and extract.summary output models ---
+
+const LegacyEntitySchema = v.object({
   span: v.string(),
   entity: v.string(),
   start: v.number(),
@@ -17,14 +197,10 @@ const EntitySchema = v.object({
   score: v.number(),
 });
 
-const ExtractBaseResultsSchema = v.object({
-  results: v.array(EntitySchema),
-});
-
 const RelationResultSchema = v.object({
-  source: EntitySchema,
+  source: LegacyEntitySchema,
   relation: v.string(),
-  target: EntitySchema,
+  target: LegacyEntitySchema,
   score: v.number(),
 });
 
@@ -43,33 +219,8 @@ const ExtractSummaryResultsSchema = v.object({
   results: v.array(ExtractSummaryResultSchema),
 });
 
-export type ComprehendResults = v.InferOutput<typeof ComprehendResultsSchema>;
-
-export type ExtractBaseResults = v.InferOutput<typeof ExtractBaseResultsSchema>;
-
 export type ExtractRelationsResults = v.InferOutput<typeof ExtractRelationsResultsSchema>;
-
 export type ExtractSummaryResults = v.InferOutput<typeof ExtractSummaryResultsSchema>;
-
-export const validateComprehendResults = (data: unknown): ComprehendResults => {
-  if (data && typeof data === 'object' && !('results' in data) && 'outputs' in data) {
-    return v.parse(ComprehendResultsSchema, {
-      ...(data as object),
-      results: (data as Record<string, unknown>).outputs,
-    });
-  }
-  return v.parse(ComprehendResultsSchema, data);
-};
-
-export const validateExtractBaseResults = (data: unknown): ExtractBaseResults => {
-  if (data && typeof data === 'object' && !('results' in data) && 'outputs' in data) {
-    return v.parse(ExtractBaseResultsSchema, {
-      ...(data as object),
-      results: (data as Record<string, unknown>).outputs,
-    });
-  }
-  return v.parse(ExtractBaseResultsSchema, data);
-};
 
 export const validateExtractRelationsResults = (data: unknown): ExtractRelationsResults => {
   if (data && typeof data === 'object' && !('results' in data) && 'outputs' in data) {
@@ -83,6 +234,8 @@ export const validateExtractRelationsResults = (data: unknown): ExtractRelations
 
 export const validateExtractSummaryResults = (data: unknown): ExtractSummaryResults =>
   v.parse(ExtractSummaryResultsSchema, data);
+
+// --- Instruct outputs ---
 
 const InstructItResultsSchema = v.object({
   outputs: v.union([v.string(), v.array(v.any()), v.record(v.string(), v.any())]),
