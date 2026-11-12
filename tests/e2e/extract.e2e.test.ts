@@ -1,3 +1,5 @@
+import type { ExtractRequest } from '../../src';
+
 import { getE2EClient } from './setup';
 
 const client = getE2EClient();
@@ -8,11 +10,25 @@ runTest('Extract API E2E', () => {
   it('executes extract entity inference against live API', async () => {
     const results = await client!.extract.it({
       text: 'Steve Jobs co-founded Apple Inc. in California.',
-      labels: ['person', 'organization', 'location'],
+      tasks: {
+        entities: {
+          type: 'span',
+          labels: ['person', 'organization', 'location'],
+        },
+      },
     });
 
     expect(results).toBeDefined();
     expect(results.results).toBeDefined();
-    expect(Array.isArray(results.results)).toBe(true);
+    expect(results.entities).toBeDefined();
   }, 60000);
+
+  it('throws TypeError when passing removed labels argument', async () => {
+    await expect(
+      client!.extract.it({
+        text: 'Steve Jobs co-founded Apple Inc.',
+        labels: ['person', 'organization'],
+      } as unknown as ExtractRequest),
+    ).rejects.toThrow(TypeError);
+  });
 });
