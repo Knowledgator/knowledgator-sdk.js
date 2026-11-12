@@ -81,21 +81,21 @@ import {
 } from '../finetuning';
 import {
   validateComprehendRequest,
-  validateExtractBaseRequest,
+  validateExtractRequest,
   validateExtractRelationsRequest,
   validateExtractSummaryRequest,
   type ComprehendRequest,
-  type ExtractBaseRequest,
+  type ExtractRequest,
   type ExtractRelationsRequest,
   type ExtractSummaryRequest,
   type InstructItRequest,
   validateInstructItRequest,
 } from '../models/inputs';
 import {
-  type ExtractBaseResults,
+  type ExtractResults,
   type ExtractRelationsResults,
   type ExtractSummaryResults,
-  validateExtractBaseResults,
+  validateExtractResults,
   validateExtractRelationsResults,
   validateExtractSummaryResults,
   type ComprehendResults,
@@ -334,21 +334,21 @@ const createComprehendApi = (apiKey: string, config: Config) => ({
       serviceKey: 'comprehend',
       endpointKey: 'comprehend',
       body: { type: 'json', data: validateComprehendRequest(request) },
-      headers: getModelIdHeader(request.adapter_id ?? request.model_id),
+      headers: getModelIdHeader((request.adapter_id ?? request.model_id) || undefined),
       responseValidator: validateComprehendResults,
     }),
 });
 
 const createExtractApi = (apiKey: string, config: Config) => ({
-  it: async (request: ExtractBaseRequest): Promise<ExtractBaseResults> => {
-    const data = validateExtractBaseRequest(request);
+  it: async (request: ExtractRequest): Promise<ExtractResults> => {
+    const data = validateExtractRequest(request);
     return sendRequest(apiKey, config, {
       method: 'POST',
       serviceKey: 'extract',
       endpointKey: 'extract',
       body: { type: 'json', data },
-      headers: getModelIdHeader(request.adapter_id ?? request.model_id),
-      responseValidator: validateExtractBaseResults,
+      headers: getModelIdHeader((request.adapter_id ?? request.model_id) || undefined),
+      responseValidator: validateExtractResults,
     });
   },
   relations: async (request: ExtractRelationsRequest): Promise<ExtractRelationsResults> => {

@@ -7,24 +7,24 @@ import {
 import { createHttpClient, HttpOptions } from '../../client/http';
 import {
   type ComprehendRequest,
-  type ExtractBaseRequest,
+  type ExtractRequest,
   type ExtractRelationsRequest,
   type ExtractSummaryRequest,
   type InstructItRequest,
   type FileMetadata,
   validateComprehendRequest,
-  validateExtractBaseRequest,
+  validateExtractRequest,
   validateExtractRelationsRequest,
   validateExtractSummaryRequest,
   validateInstructItRequest,
 } from '../../models/inputs';
 import {
-  validateExtractBaseResults,
+  validateExtractResults,
   validateExtractRelationsResults,
   validateExtractSummaryResults,
   validateComprehendResults,
   type ComprehendResults,
-  type ExtractBaseResults,
+  type ExtractResults,
   type ExtractRelationsResults,
   type ExtractSummaryResults,
   type InstructItResults,
@@ -47,7 +47,7 @@ jest.mock('../../models/inputs', () => {
   return {
     ...actual,
     validateComprehendRequest: jest.fn(),
-    validateExtractBaseRequest: jest.fn(),
+    validateExtractRequest: jest.fn(),
     validateExtractRelationsRequest: jest.fn(),
     validateExtractSummaryRequest: jest.fn(),
     validateInstructItRequest: jest.fn(),
@@ -56,12 +56,12 @@ jest.mock('../../models/inputs', () => {
 jest.mock('../../models/outputs');
 
 const comprehendRequest: ComprehendRequest = {
-  text: '',
-  labels: [],
+  input: 'test',
+  tasks: { topic: { type: 'classify', labels: ['test'] } },
 };
-const extractBaseRequest: ExtractBaseRequest = {
-  text: '',
-  entities: [],
+const extractRequest: ExtractRequest = {
+  input: 'test',
+  tasks: { entities: { type: 'span', labels: ['test'] } },
 };
 const extractRelationsRequest: ExtractRelationsRequest = {
   text: '',
@@ -75,10 +75,12 @@ const instructItRequest: InstructItRequest = {
   text: 'Summarize this policy in 3 bullet points.',
 };
 const comprehendResults: ComprehendResults = {
-  results: [],
+  results: {},
+  outputs: {},
 };
-const extractBaseResults: ExtractBaseResults = {
-  results: [],
+const extractResults: ExtractResults = {
+  results: {},
+  outputs: {},
 };
 const extractRelationsResults: ExtractRelationsResults = {
   results: [],
@@ -93,8 +95,8 @@ const instructItResults: InstructItResults = {
 const mockValidateComprehendRequest = validateComprehendRequest as jest.MockedFunction<
   typeof validateComprehendRequest
 >;
-const mockValidateExtractBaseRequest = validateExtractBaseRequest as jest.MockedFunction<
-  typeof validateExtractBaseRequest
+const mockValidateExtractRequest = validateExtractRequest as jest.MockedFunction<
+  typeof validateExtractRequest
 >;
 const mockValidateExtractRelationsRequest = validateExtractRelationsRequest as jest.MockedFunction<
   typeof validateExtractRelationsRequest
@@ -108,8 +110,8 @@ const mockValidateInstructItRequest = validateInstructItRequest as jest.MockedFu
 const mockValidateComprehendResults = validateComprehendResults as jest.MockedFunction<
   typeof validateComprehendResults
 >;
-const mockValidateExtractBaseResults = validateExtractBaseResults as jest.MockedFunction<
-  typeof validateExtractBaseResults
+const mockValidateExtractResults = validateExtractResults as jest.MockedFunction<
+  typeof validateExtractResults
 >;
 const mockValidateExtractRelationsResults = validateExtractRelationsResults as jest.MockedFunction<
   typeof validateExtractRelationsResults
@@ -147,12 +149,12 @@ describe(createClient.name, () => {
     );
 
     mockValidateComprehendRequest.mockImplementation(() => comprehendRequest);
-    mockValidateExtractBaseRequest.mockImplementation(() => extractBaseRequest);
+    mockValidateExtractRequest.mockImplementation(() => extractRequest);
     mockValidateExtractRelationsRequest.mockImplementation(() => extractRelationsRequest);
     mockValidateExtractSummaryRequest.mockImplementation(() => extractSummaryRequest);
     mockValidateInstructItRequest.mockImplementation(() => instructItRequest);
     mockValidateComprehendResults.mockImplementation(() => comprehendResults);
-    mockValidateExtractBaseResults.mockImplementation(() => extractBaseResults);
+    mockValidateExtractResults.mockImplementation(() => extractResults);
     mockValidateExtractRelationsResults.mockImplementation(() => extractRelationsResults);
     mockValidateExtractSummaryResults.mockImplementation(() => extractSummaryResults);
     mockValidateInstructItResults.mockImplementation(() => instructItResults);
@@ -365,16 +367,16 @@ describe(createClient.name, () => {
     describe('it method', () => {
       it('should call extract it endpoint', async () => {
         const client = createClient('apiKey');
-        mockResponse.json.mockResolvedValue(extractBaseResults);
+        mockResponse.json.mockResolvedValue(extractResults);
 
-        const result = await client.extract.it(extractBaseRequest);
+        const result = await client.extract.it(extractRequest);
 
-        expect(mockValidateExtractBaseRequest).toHaveBeenCalledWith(extractBaseRequest);
+        expect(mockValidateExtractRequest).toHaveBeenCalledWith(extractRequest);
         expect(mockHttpClient.post).toHaveBeenCalledWith('/inference/extract/', {
-          body: JSON.stringify(extractBaseRequest),
+          body: JSON.stringify(extractRequest),
         });
-        expect(mockValidateExtractBaseResults).toHaveBeenCalledWith(extractBaseResults);
-        expect(result).toBe(extractBaseResults);
+        expect(mockValidateExtractResults).toHaveBeenCalledWith(extractResults);
+        expect(result).toBe(extractResults);
       });
     });
 
@@ -653,17 +655,17 @@ describe(createClient.name, () => {
         expect(mockHttpClient.post).not.toHaveBeenCalled();
       });
 
-      it('should throw error when extract base request validation fails', async () => {
+      it('should throw error when extract request validation fails', async () => {
         const client = createClient('apiKey');
-        mockValidateExtractBaseRequest.mockImplementation(() => {
-          throw new Error('Invalid extract base request');
+        mockValidateExtractRequest.mockImplementation(() => {
+          throw new Error('Invalid extract request');
         });
 
-        await expect(client.extract.it({} as ExtractBaseRequest)).rejects.toThrow(
-          'Invalid extract base request',
+        await expect(client.extract.it({} as ExtractRequest)).rejects.toThrow(
+          'Invalid extract request',
         );
 
-        expect(mockValidateExtractBaseRequest).toHaveBeenCalledWith({});
+        expect(mockValidateExtractRequest).toHaveBeenCalledWith({});
         expect(mockHttpClient.post).not.toHaveBeenCalled();
       });
 
@@ -727,20 +729,18 @@ describe(createClient.name, () => {
         expect(mockValidateComprehendResults).toHaveBeenCalledWith({});
       });
 
-      it('should throw error when extract base response validation fails', async () => {
+      it('should throw error when extract response validation fails', async () => {
         const client = createClient('apiKey', {
           validateResponses: true,
         });
         mockResponse.json.mockResolvedValue({});
-        mockValidateExtractBaseResults.mockImplementation(() => {
-          throw new Error('Invalid extract base response');
+        mockValidateExtractResults.mockImplementation(() => {
+          throw new Error('Invalid extract response');
         });
 
-        await expect(client.extract.it(extractBaseRequest)).rejects.toThrow(
-          'Invalid extract base response',
-        );
+        await expect(client.extract.it(extractRequest)).rejects.toThrow('Invalid extract response');
 
-        expect(mockValidateExtractBaseResults).toHaveBeenCalledWith({});
+        expect(mockValidateExtractResults).toHaveBeenCalledWith({});
       });
 
       it('should throw error when extract relations response validation fails', async () => {
@@ -901,9 +901,9 @@ describe(createClient.name, () => {
 
       it('should use KnowledgatorAPI-Key header for extract service', async () => {
         const client = createClient('test-api-key');
-        mockResponse.json.mockResolvedValue(extractBaseResults);
+        mockResponse.json.mockResolvedValue(extractResults);
 
-        await client.extract.it(extractBaseRequest);
+        await client.extract.it(extractRequest);
 
         expect(mockCreateHttpClient).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -962,9 +962,9 @@ describe(createClient.name, () => {
         const client = createClient('test-rapidapi-key', {
           provider: 'rapidapi',
         });
-        mockResponse.json.mockResolvedValue(extractBaseResults);
+        mockResponse.json.mockResolvedValue(extractResults);
 
-        await client.extract.it(extractBaseRequest);
+        await client.extract.it(extractRequest);
 
         expect(mockCreateHttpClient).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -1015,9 +1015,9 @@ describe(createClient.name, () => {
           }),
         );
 
-        mockResponse.json.mockResolvedValue(extractBaseResults);
+        mockResponse.json.mockResolvedValue(extractResults);
 
-        await client.extract.it(extractBaseRequest);
+        await client.extract.it(extractRequest);
         expect(mockCreateHttpClient).toHaveBeenLastCalledWith(
           expect.objectContaining({
             baseUrl: 'https://extract-it.p.rapidapi.com',
