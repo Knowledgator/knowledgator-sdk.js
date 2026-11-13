@@ -79,7 +79,12 @@ const client = createClient();
 
 const response = await client.comprehend.it({
   text: 'Earth is beautiful',
-  labels: ['positive', 'negative', 'neutral'],
+  tasks: {
+    topic: {
+      type: 'classify',
+      labels: ['positive', 'negative', 'neutral'],
+    },
+  },
 });
 
 console.log(response);
@@ -96,12 +101,18 @@ const client = createClient('your-api-key-here');
 
 const result = await client.comprehend.it({
   text: 'Earth is beautiful',
-  labels: ['geography', 'sport'],
-  threshold: 0.5,
-  examples: [{ text: 'Example text', label: 'geography' }],
+  tasks: {
+    topic: {
+      type: 'classify',
+      labels: ['geography', 'sport'],
+      threshold: 0.5,
+      examples: [{ text: 'Example text', label: 'geography' }],
+    },
+  },
 });
 
 console.log(result); // Outputs ComprehendResults with classifications
+console.log(result.outputs.topic); // Directly access parsed task output
 ```
 
 ## Table of Contents
@@ -136,12 +147,18 @@ const client = createClient('your-api-key-here');
 
 const result = await client.extract.it({
   text: 'Extract entities from this text.',
-  labels: ['person', 'location'],
-  threshold: 0.5,
-  prompt: 'Custom prompt for extraction',
+  tasks: {
+    entities: {
+      type: 'span',
+      labels: ['person', 'location'],
+      threshold: 0.5,
+      instruction: 'Custom prompt for extraction',
+    },
+  },
 });
 
-console.log(result); // Outputs ExtractBaseResults with entities
+console.log(result); // Outputs ExtractResults with entities
+console.log(result.outputs.entities); // Directly access parsed task output
 ```
 
 ## Relation Extraction
@@ -155,14 +172,14 @@ const client = createClient();
 
 const result = await client.extract.relations({
   text: 'Text with entities and relations.',
-  entities: ['person', 'organization'],
+  entities: ['person', 'organization'], // 'entities' is the primary field ('labels' is accepted as an alias)
   relations: ['works_for', 'located_in'],
   threshold: 0.5,
   prompt: 'Custom relation prompt',
   rules: [{ rule: 'example rule' }],
 });
 
-console.log(result.results); // Outputs ExtractRelationsResults
+console.log(result.results); // Outputs ExtractRelationsResults (result.outputs supported as fallback)
 ```
 
 ## Summarization
@@ -406,7 +423,12 @@ When fine-tuning creates a lightweight adapter (`type="adapter"`), supply `adapt
 // Zero-shot classification with your fine-tuned LoRA adapter
 const res = await client.comprehend.it({
   text: 'Smartphone with 120Hz OLED screen and 5000mAh battery',
-  labels: ['Electronics', 'Apparel', 'Home Goods'],
+  tasks: {
+    topic: {
+      type: 'classify',
+      labels: ['Electronics', 'Apparel', 'Home Goods'],
+    },
+  },
   adapter_id: 'your-adapter-id', // Automatically passes KnowledgatorAPI-Model-ID header
 });
 ```
@@ -486,7 +508,12 @@ const client = createClient('your-rapidapi-key-here', {
 // Usage is the same as above
 const result = await client.comprehend.it({
   text: 'Text to classify',
-  labels: ['positive', 'negative'],
+  tasks: {
+    topic: {
+      type: 'classify',
+      labels: ['positive', 'negative'],
+    },
+  },
 });
 ```
 
@@ -541,8 +568,8 @@ import type {
   EndpointConfig,
   ComprehendRequest,
   ComprehendResults,
-  ExtractBaseRequest,
-  ExtractBaseResults,
+  ExtractRequest,
+  ExtractResults,
   ExtractRelationsRequest,
   ExtractRelationsResults,
   ExtractSummaryResults,
@@ -589,7 +616,12 @@ const client = createClient('your-api-key-here');
 try {
   const result = await client.comprehend.it({
     text: 'text',
-    labels: ['labels'],
+    tasks: {
+      topic: {
+        type: 'classify',
+        labels: ['label1', 'label2'],
+      },
+    },
   });
   console.log(result);
 } catch (error) {
@@ -674,8 +706,8 @@ The SDK is built with TypeScript and provides full type safety:
 import type {
   ComprehendRequest,
   ComprehendResults,
-  ExtractBaseRequest,
-  ExtractBaseResults,
+  ExtractRequest,
+  ExtractResults,
   ExtractRelationsRequest,
   ExtractRelationsResults,
   ExtractSummaryRequest,
@@ -685,8 +717,13 @@ import type {
 // All request and response objects are fully typed
 const request: ComprehendRequest = {
   text: 'Sample text',
-  labels: ['positive', 'negative'],
-  threshold: 0.7, // TypeScript ensures this is between 0 and 1
+  tasks: {
+    sentiment: {
+      type: 'classify',
+      labels: ['positive', 'negative'],
+      threshold: 0.7, // TypeScript ensures this is between 0 and 1
+    },
+  },
 };
 ```
 
