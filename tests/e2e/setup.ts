@@ -39,6 +39,8 @@ export const getE2EClient = (): KnowledgatorClient | null => {
             datasetsUpload: '/datasets/:id/files/upload/',
             datasetsDownload: '/datasets/:id/download/',
             datasetsFormats: '/files/formats/datasets/',
+            modelInference: '/inference/:modelId/',
+            modelInferenceMethod: '/inference/:modelId/:method/',
           },
         }
       : {}),
