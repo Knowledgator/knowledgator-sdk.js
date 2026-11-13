@@ -16,7 +16,6 @@ export {
   validateExtractRequest,
 } from './models';
 export {
-  type ExtractBaseRequest,
   type ExtractRelationsRequest,
   type ExtractSummaryRequest,
   type InstructItRequest,

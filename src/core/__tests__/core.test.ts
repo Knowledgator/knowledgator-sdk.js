@@ -73,6 +73,7 @@ const extractSummaryRequest: ExtractSummaryRequest = {
 };
 const instructItRequest: InstructItRequest = {
   text: 'Summarize this policy in 3 bullet points.',
+  template: '{"summary": ""}',
 };
 const comprehendResults: ComprehendResults = {
   results: {},
@@ -425,10 +426,11 @@ describe(createClient.name, () => {
         body: expect.any(FormData),
       });
 
-      // Verify FormData contains the text field
+      // Verify FormData contains the text field and template
       const callArgs = mockHttpClient.post.mock.calls[0];
       const formData = callArgs[1]!.body as FormData;
       expect(formData.get('text')).toBe('Summarize this policy in 3 bullet points.');
+      expect(formData.get('template')).toBe('{"summary": ""}');
 
       expect(mockValidateInstructItResults).toHaveBeenCalledWith(instructItResults);
       expect(result).toBe(instructItResults);
@@ -460,11 +462,31 @@ describe(createClient.name, () => {
       expect(result).toBe(instructItResults);
     });
 
+    it('should serialize object template to JSON string in FormData', async () => {
+      const client = createClient('apiKey');
+      const requestWithObjTemplate: InstructItRequest = {
+        text: 'Extract info',
+        template: { summary: '', key_points: [] },
+      };
+      mockValidateInstructItRequest.mockImplementation(() => requestWithObjTemplate);
+      mockResponse.json.mockResolvedValue(instructItResults);
+
+      const result = await client.instruct.it(requestWithObjTemplate);
+
+      expect(mockValidateInstructItRequest).toHaveBeenCalledWith(requestWithObjTemplate);
+      const callArgs = mockHttpClient.post.mock.calls[0];
+      const formData = callArgs[1]!.body as FormData;
+      expect(formData.get('text')).toBe('Extract info');
+      expect(formData.get('template')).toBe(JSON.stringify({ summary: '', key_points: [] }));
+      expect(result).toBe(instructItResults);
+    });
+
     it('should handle file references without content', async () => {
       const client = createClient('apiKey');
       const files: FileMetadata[] = [{ name: 'file-id-1' }, { name: 'file-id-2' }];
       const requestWithFiles: InstructItRequest = {
         text: 'Compare these two documents',
+        template: '{"comparison": ""}',
         files,
       };
       mockValidateInstructItRequest.mockImplementation(() => requestWithFiles);
@@ -478,6 +500,7 @@ describe(createClient.name, () => {
       const callArgs = mockHttpClient.post.mock.calls[0];
       const formData = callArgs[1]!.body as FormData;
       expect(formData.get('text')).toBe('Compare these two documents');
+      expect(formData.get('template')).toBe('{"comparison": ""}');
       expect(formData.get('filesmetadata')).toBe(JSON.stringify(['file-id-1', 'file-id-2']));
 
       // Verify no file parts were added (only metadata)
@@ -496,6 +519,7 @@ describe(createClient.name, () => {
       ];
       const requestWithContent: InstructItRequest = {
         text: 'Process this document',
+        template: '{"steps": []}',
         files,
         output_type: 'list',
       };
@@ -508,6 +532,7 @@ describe(createClient.name, () => {
       const callArgs = mockHttpClient.post.mock.calls[0];
       const formData = callArgs[1]!.body as FormData;
       expect(formData.get('text')).toBe('Process this document');
+      expect(formData.get('template')).toBe('{"steps": []}');
       expect(formData.get('output_type')).toBe('list');
       expect(formData.get('filesmetadata')).toBe(JSON.stringify(['document.pdf']));
 

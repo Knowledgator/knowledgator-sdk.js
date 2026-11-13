@@ -298,9 +298,11 @@ const sendInstructRequest = async <TOutput>(
   const formData = new FormData();
 
   formData.append('text', data.text);
-  if (data.template) {
-    formData.append('template', data.template);
-  }
+  const templateStr =
+    typeof data.template === 'object' && data.template !== null
+      ? JSON.stringify(data.template)
+      : String(data.template);
+  formData.append('template', templateStr);
   if (data.output_type) {
     formData.append('output_type', data.output_type);
   }

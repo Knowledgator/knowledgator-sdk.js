@@ -7,9 +7,6 @@ export {
   validateExtractRequest,
 } from './models';
 
-// Backwards-compatible alias for type imports if any external consumer used ExtractBaseRequest
-export type { ExtractRequest as ExtractBaseRequest } from './models';
-
 const ExtractRelationsRequestRuleSchema = v.object({
   relation: v.pipe(v.string(), v.minLength(1)),
   pairs_filter: v.optional(v.array(v.array(v.string()))),
@@ -60,7 +57,7 @@ export type FileMetadata = v.InferInput<typeof FileMetadataSchema>;
 
 const InstructItRequestSchema = v.object({
   text: v.pipe(v.string(), v.minLength(1)),
-  template: v.optional(v.string()),
+  template: v.union([v.string(), v.record(v.string(), v.unknown())]),
   files: v.optional(v.array(FileMetadataSchema)),
   output_type: v.optional(v.string()),
   model_id: v.optional(v.string()),

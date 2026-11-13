@@ -187,20 +187,12 @@ export const validateExtractResults = (data: unknown): ExtractResults => {
   return res;
 };
 
-// --- Legacy extract.relations and extract.summary output models ---
-
-const LegacyEntitySchema = v.object({
-  span: v.string(),
-  entity: v.string(),
-  start: v.number(),
-  end: v.number(),
-  score: v.number(),
-});
+// --- extract.relations and extract.summary output models ---
 
 const RelationResultSchema = v.object({
-  source: LegacyEntitySchema,
+  source: SpanEntitySchema,
   relation: v.string(),
-  target: LegacyEntitySchema,
+  target: SpanEntitySchema,
   score: v.number(),
 });
 
