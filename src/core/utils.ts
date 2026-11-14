@@ -31,7 +31,6 @@ export const getModelIdHeader = (modelId?: string): Record<string, string> | und
   return modelId
     ? {
         'KnowledgatorAPI-Model-ID': modelId,
-        'X-Model-Id': modelId,
       }
     : undefined;
 };
