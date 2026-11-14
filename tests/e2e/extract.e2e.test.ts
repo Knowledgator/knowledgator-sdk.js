@@ -8,7 +8,7 @@ const runTest = client ? describe : describe.skip;
 
 runTest('Extract API E2E', () => {
   it('executes extract entity inference against live API', async () => {
-    const results = await client!.extract.it({
+    const res = await client!.extract.it({
       text: 'Steve Jobs co-founded Apple Inc. in California.',
       tasks: {
         entities: {
@@ -18,9 +18,9 @@ runTest('Extract API E2E', () => {
       },
     });
 
-    expect(results).toBeDefined();
-    expect(results.results).toBeDefined();
-    expect(results.entities).toBeDefined();
+    expect(res).toBeDefined();
+    expect(res.outputs).toBeDefined();
+    expect(res.entities).toBeDefined();
   }, 60000);
 
   it('throws TypeError when passing removed labels argument', async () => {

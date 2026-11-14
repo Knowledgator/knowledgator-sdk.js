@@ -8,7 +8,7 @@ const runTest = client ? describe : describe.skip;
 
 runTest('Comprehend API E2E', () => {
   it('executes comprehend inference against live API', async () => {
-    const results = await client!.comprehend.it({
+    const res = await client!.comprehend.it({
       text: 'SpaceX launched another Starship prototype rocket from Texas.',
       tasks: {
         topic: {
@@ -18,9 +18,9 @@ runTest('Comprehend API E2E', () => {
       },
     });
 
-    expect(results).toBeDefined();
-    expect(results.results).toBeDefined();
-    expect(results.topic).toBeDefined();
+    expect(res).toBeDefined();
+    expect(res.outputs).toBeDefined();
+    expect(res.topic).toBeDefined();
   }, 60000);
 
   it('throws TypeError when passing removed labels argument', async () => {

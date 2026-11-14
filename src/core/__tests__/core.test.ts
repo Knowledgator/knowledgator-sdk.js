@@ -918,7 +918,6 @@ describe(createClient.name, () => {
             baseHeaders: {
               'Content-Type': 'application/json',
               'KnowledgatorAPI-Key': 'test-api-key',
-              Authorization: 'Bearer test-api-key',
             },
           }),
         );
@@ -936,7 +935,6 @@ describe(createClient.name, () => {
             baseHeaders: {
               'Content-Type': 'application/json',
               'KnowledgatorAPI-Key': 'test-api-key',
-              Authorization: 'Bearer test-api-key',
             },
           }),
         );
@@ -953,7 +951,6 @@ describe(createClient.name, () => {
             baseUrl: DEFAULT_SERVERS.instruct,
             baseHeaders: {
               'KnowledgatorAPI-Key': 'test-api-key',
-              Authorization: 'Bearer test-api-key',
               // Ensure Content-Type is removed so browser/client can set multipart/form-data boundary
               'Content-Type': undefined,
             },
@@ -1078,23 +1075,18 @@ describe(createClient.name, () => {
       process.env = originalEnv;
     });
 
-    it('should generate dual auth headers in getDefaultHeaders', () => {
+    it('should generate auth headers in getDefaultHeaders', () => {
       const headers = getDefaultHeaders('my-secret-key');
       expect(headers).toEqual({
         'Content-Type': 'application/json',
         'KnowledgatorAPI-Key': 'my-secret-key',
-        Authorization: 'Bearer my-secret-key',
       });
-
-      const bearerHeaders = getDefaultHeaders('Bearer already-prefixed');
-      expect(bearerHeaders['Authorization']).toBe('Bearer already-prefixed');
     });
 
-    it('should generate dual model headers in getModelIdHeader', () => {
+    it('should generate model header in getModelIdHeader', () => {
       const headers = getModelIdHeader('model-xyz');
       expect(headers).toEqual({
         'KnowledgatorAPI-Model-ID': 'model-xyz',
-        'X-Model-Id': 'model-xyz',
       });
 
       expect(getModelIdHeader(undefined)).toBeUndefined();
@@ -1111,7 +1103,6 @@ describe(createClient.name, () => {
         expect.objectContaining({
           baseHeaders: expect.objectContaining({
             'KnowledgatorAPI-Key': 'ambient-env-key',
-            Authorization: 'Bearer ambient-env-key',
           }),
         }),
       );
@@ -1128,7 +1119,6 @@ describe(createClient.name, () => {
         expect.objectContaining({
           baseHeaders: expect.objectContaining({
             'KnowledgatorAPI-Key': 'config-only-key',
-            Authorization: 'Bearer config-only-key',
           }),
         }),
       );

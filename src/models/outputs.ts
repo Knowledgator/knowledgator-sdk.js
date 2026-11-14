@@ -80,7 +80,6 @@ export type TaskOutput =
   | Record<string, unknown>;
 
 export interface ComprehendResults {
-  results: Record<string, TaskOutput>;
   outputs: Record<string, TaskOutput>;
   raw?: Record<string, unknown>;
   usage?: Record<string, unknown>;
@@ -91,7 +90,6 @@ export interface ComprehendResults {
 }
 
 export interface ExtractResults {
-  results: Record<string, TaskOutput>;
   outputs: Record<string, TaskOutput>;
   raw?: Record<string, unknown>;
   usage?: Record<string, unknown>;
@@ -103,22 +101,17 @@ export interface ExtractResults {
 
 export const validateComprehendResults = (data: unknown): ComprehendResults => {
   if (!data || typeof data !== 'object') {
-    throw new Error(
-      "Unexpected response shape: expected task-keyed dictionary in 'outputs'/'results'",
-    );
+    throw new Error("Unexpected response shape: expected task-keyed dictionary in 'outputs'");
   }
 
   const raw = data as Record<string, unknown>;
-  const tasksRaw = raw.outputs ?? raw.results;
+  const tasksRaw = raw.outputs;
 
   if (!tasksRaw || typeof tasksRaw !== 'object' || Array.isArray(tasksRaw)) {
-    throw new Error(
-      "Unexpected response shape: expected task-keyed dictionary in 'outputs'/'results'",
-    );
+    throw new Error("Unexpected response shape: expected task-keyed dictionary in 'outputs'");
   }
 
   const res: ComprehendResults = {
-    results: tasksRaw as Record<string, TaskOutput>,
     outputs: tasksRaw as Record<string, TaskOutput>,
     raw,
     usage: raw.usage as Record<string, unknown> | undefined,
@@ -136,22 +129,17 @@ export const validateComprehendResults = (data: unknown): ComprehendResults => {
 
 export const validateExtractResults = (data: unknown): ExtractResults => {
   if (!data || typeof data !== 'object') {
-    throw new Error(
-      "Unexpected response shape: expected task-keyed dictionary in 'outputs'/'results'",
-    );
+    throw new Error("Unexpected response shape: expected task-keyed dictionary in 'outputs'");
   }
 
   const raw = data as Record<string, unknown>;
-  const tasksRaw = raw.outputs ?? raw.results;
+  const tasksRaw = raw.outputs;
 
   if (!tasksRaw || typeof tasksRaw !== 'object' || Array.isArray(tasksRaw)) {
-    throw new Error(
-      "Unexpected response shape: expected task-keyed dictionary in 'outputs'/'results'",
-    );
+    throw new Error("Unexpected response shape: expected task-keyed dictionary in 'outputs'");
   }
 
   const res: ExtractResults = {
-    results: tasksRaw as Record<string, TaskOutput>,
     outputs: tasksRaw as Record<string, TaskOutput>,
     raw,
     usage: raw.usage as Record<string, unknown> | undefined,
@@ -197,7 +185,7 @@ const RelationResultSchema = v.object({
 });
 
 const ExtractRelationsResultsSchema = v.object({
-  results: v.array(RelationResultSchema),
+  outputs: v.array(RelationResultSchema),
 });
 
 const ExtractSummaryResultSchema = v.object({
@@ -208,21 +196,14 @@ const ExtractSummaryResultSchema = v.object({
 });
 
 const ExtractSummaryResultsSchema = v.object({
-  results: v.array(ExtractSummaryResultSchema),
+  outputs: v.array(ExtractSummaryResultSchema),
 });
 
 export type ExtractRelationsResults = v.InferOutput<typeof ExtractRelationsResultsSchema>;
 export type ExtractSummaryResults = v.InferOutput<typeof ExtractSummaryResultsSchema>;
 
-export const validateExtractRelationsResults = (data: unknown): ExtractRelationsResults => {
-  if (data && typeof data === 'object' && !('results' in data) && 'outputs' in data) {
-    return v.parse(ExtractRelationsResultsSchema, {
-      ...(data as object),
-      results: (data as Record<string, unknown>).outputs,
-    });
-  }
-  return v.parse(ExtractRelationsResultsSchema, data);
-};
+export const validateExtractRelationsResults = (data: unknown): ExtractRelationsResults =>
+  v.parse(ExtractRelationsResultsSchema, data);
 
 export const validateExtractSummaryResults = (data: unknown): ExtractSummaryResults =>
   v.parse(ExtractSummaryResultsSchema, data);
