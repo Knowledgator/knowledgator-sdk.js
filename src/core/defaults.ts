@@ -43,7 +43,6 @@ export const getDefaultHeaders = (apiKey?: string): Record<string, string> => {
   };
   if (apiKey) {
     headers['KnowledgatorAPI-Key'] = apiKey;
-    headers['Authorization'] = apiKey.startsWith('Bearer ') ? apiKey : `Bearer ${apiKey}`;
   }
   return headers;
 };
