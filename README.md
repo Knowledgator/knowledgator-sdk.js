@@ -179,7 +179,7 @@ const result = await client.extract.relations({
   rules: [{ rule: 'example rule' }],
 });
 
-console.log(result.results); // Outputs ExtractRelationsResults (result.outputs supported as fallback)
+console.log(result.outputs); // Outputs array of extracted RelationResult objects
 ```
 
 ## Summarization
