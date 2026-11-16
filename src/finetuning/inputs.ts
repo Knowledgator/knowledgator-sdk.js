@@ -16,13 +16,24 @@ const CreateBaseModelRequestSchema = v.object({
   description: v.optional(v.string()),
 });
 
+export const ModelObjectTypeEnum = v.picklist(['model', 'adapter']);
+export type ModelObjectType = v.InferInput<typeof ModelObjectTypeEnum>;
+
 const ListModelsRequestSchema = v.object({
   offset: v.optional(v.pipe(v.number(), v.minValue(0)), 0),
   limit: v.optional(v.pipe(v.number(), v.minValue(0), v.maxValue(10000)), 100),
   name: v.optional(
     v.nullable(v.pipe(v.string(), v.minLength(1), v.maxLength(64), v.regex(BASE_MODEL_NAME_REGEX))),
   ),
-  type: v.optional(v.nullable(ServiceTypeEnum)),
+  type: v.optional(v.nullable(v.union([ServiceTypeEnum, v.string()]))),
+  object_type: v.optional(v.nullable(ModelObjectTypeEnum)),
+  trainable: v.optional(v.nullable(ModelObjectTypeEnum)),
+  inference: v.optional(v.nullable(v.string())),
+  architecture: v.optional(v.nullable(v.string())),
+  tag: v.optional(v.nullable(v.string())),
+  task: v.optional(v.nullable(v.string())),
+  modality: v.optional(v.nullable(v.string())),
+  collection_id: v.optional(v.nullable(v.string())),
   include_base: v.optional(v.boolean(), true),
 });
 

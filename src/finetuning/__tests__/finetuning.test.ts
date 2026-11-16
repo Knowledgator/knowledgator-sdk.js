@@ -68,6 +68,18 @@ describe('Fine-tuning Module', () => {
         expect(() => validateListModelsRequest(request)).not.toThrow();
       });
 
+      it('should validate list models request with object_type and trainable', () => {
+        const request: ListModelsRequest = {
+          offset: 0,
+          limit: 20,
+          object_type: 'adapter',
+          trainable: 'adapter',
+          inference: 'comprehend-it',
+        };
+
+        expect(() => validateListModelsRequest(request)).not.toThrow();
+      });
+
       it('should accept empty request', () => {
         const request = {};
 
@@ -204,6 +216,26 @@ describe('Fine-tuning Module', () => {
         };
 
         expect(() => validateTrainingModel(model)).not.toThrow();
+      });
+
+      it('should validate model with string num_of_parameters and new fields', () => {
+        const model = {
+          id: 'model-456',
+          name: 'large-model',
+          type: 'text-classification',
+          num_of_parameters: '494M',
+          fine_tuned: true,
+          parent_model: 'base-model-id',
+          inference: 'comprehend-it',
+          tags: ['qa', 'nlp'],
+          tasks: ['classification'],
+          modalities: ['text'],
+        };
+
+        const parsed = validateTrainingModel(model);
+        expect(parsed.num_of_parameters).toBe('494M');
+        expect(parsed.fine_tuned).toBe(true);
+        expect(parsed.parent_model).toBe('base-model-id');
       });
     });
 

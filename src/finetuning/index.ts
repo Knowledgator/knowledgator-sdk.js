@@ -1,5 +1,6 @@
 export {
   type TrainingStatus,
+  type ModelObjectType,
   type CreateBaseModelRequest,
   type ListModelsRequest,
   type StartTrainingRequest,
@@ -7,6 +8,7 @@ export {
   type ListEventsRequest,
   type GetMetricsRequest,
   TrainingStatusEnum,
+  ModelObjectTypeEnum,
   validateCreateBaseModelRequest,
   validateListModelsRequest,
   validateStartTrainingRequest,
