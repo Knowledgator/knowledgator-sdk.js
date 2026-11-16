@@ -61,7 +61,6 @@ import {
   type ObjectCreation,
   type TrainingObject,
   type ListTrainingsResults,
-  type ListTagsResults,
   type ListEventsResults,
   type ListMetricsResults,
   validateCreateBaseModelRequest,
@@ -74,7 +73,6 @@ import {
   validateObjectCreation,
   validateTrainingObject,
   validateListTrainingsResults,
-  validateListTagsResults,
   validateListEventsResults,
   validateListMetricsResults,
   validateGetMetricsRequest,
@@ -139,6 +137,9 @@ const resolveRapidApiConfig = (
   };
 };
 
+const isPublicModelsEndpoint = (endpointKey: keyof EndpointConfig, method?: string) =>
+  (!method || method === 'GET') && (endpointKey === 'models' || endpointKey === 'modelsById');
+
 const resolveCustomConfig = (
   apiKey: string,
   config: Extract<Config, { provider: 'custom' }>,
@@ -177,15 +178,16 @@ const resolveDefaultConfig = (
   serviceKey: keyof ServerConfig,
   endpointKey: keyof EndpointConfig,
   pathParams?: Record<string, string>,
+  method?: string,
 ): RequestConfig => {
-  if (!apiKey) {
+  if (!apiKey && !isPublicModelsEndpoint(endpointKey, method)) {
     throw new ApiKeyRequiredError();
   }
 
   return {
     baseUrl: DEFAULT_SERVERS[serviceKey],
     endpoint: replacePathParams(DEFAULT_ENDPOINTS[endpointKey], pathParams),
-    baseHeaders: getDefaultHeaders(apiKey),
+    baseHeaders: apiKey ? getDefaultHeaders(apiKey) : { 'Content-Type': 'application/json' },
   };
 };
 
@@ -195,6 +197,7 @@ const resolveRequestConfig = (
   serviceKey: keyof ServerConfig,
   endpointKey: keyof EndpointConfig,
   pathParams?: Record<string, string>,
+  method?: string,
 ): RequestConfig => {
   if (config.provider === 'rapidapi') {
     return resolveRapidApiConfig(apiKey, serviceKey, endpointKey, pathParams);
@@ -204,7 +207,7 @@ const resolveRequestConfig = (
     return resolveCustomConfig(apiKey, config, serviceKey, endpointKey, pathParams);
   }
 
-  return resolveDefaultConfig(apiKey, serviceKey, endpointKey, pathParams);
+  return resolveDefaultConfig(apiKey, serviceKey, endpointKey, pathParams, method);
 };
 
 const sendRequest = (async (apiKey, config, options) => {
@@ -217,13 +220,23 @@ const sendRequest = (async (apiKey, config, options) => {
     serviceKey,
     endpointKey,
     pathParams,
+    method,
   );
 
-  const headers = {
-    ...((body?.type === 'formData' ? omitHeaders(baseHeaders, ['Content-Type']) : baseHeaders) ||
-      {}),
+  const effectiveBaseHeaders = isPublicModelsEndpoint(endpointKey, method)
+    ? omitHeaders(baseHeaders, ['KnowledgatorAPI-Key'])
+    : baseHeaders;
+
+  const rawHeaders = {
+    ...((body?.type === 'formData'
+      ? omitHeaders(effectiveBaseHeaders, ['Content-Type'])
+      : effectiveBaseHeaders) || {}),
     ...options.headers,
   };
+
+  const headers = Object.fromEntries(
+    Object.entries(rawHeaders).filter(([, v]) => v !== undefined && v !== null),
+  ) as Record<string, string>;
 
   const httpClient = createHttpClient({
     baseUrl,
@@ -739,104 +752,114 @@ const createDatasetsApi = (apiKey: string, config: Config) => {
   return api;
 };
 
-const createFinetuningApi = (apiKey: string, config: Config) => ({
-  createBaseModel: async (request: CreateBaseModelRequest): Promise<ObjectCreation> =>
+const createModelsApi = (apiKey: string, config: Config) => ({
+  create: async (request: CreateBaseModelRequest): Promise<ObjectCreation> =>
     sendRequest(apiKey, config, {
       method: 'POST',
       serviceKey: 'finetuning',
-      endpointKey: 'finetuningModels',
+      endpointKey: 'models',
       body: { type: 'json', data: validateCreateBaseModelRequest(request) },
       responseValidator: validateObjectCreation,
     }),
-  listModels: async (request: ListModelsRequest = {}): Promise<ListModelsResults> =>
+  list: async (request: ListModelsRequest = {}): Promise<ListModelsResults> =>
     sendRequest(apiKey, config, {
       method: 'GET',
       serviceKey: 'finetuning',
-      endpointKey: 'finetuningModels',
+      endpointKey: 'models',
       queryParams: validateListModelsRequest(request),
       responseValidator: validateListModelsResults,
     }),
-  getModel: async (modelId: string): Promise<TrainingModel> =>
+  get: async (modelId: string): Promise<TrainingModel> =>
     sendRequest(apiKey, config, {
       method: 'GET',
       serviceKey: 'finetuning',
-      endpointKey: 'finetuningModelsById',
+      endpointKey: 'modelsById',
       pathParams: { id: modelId },
       responseValidator: validateTrainingModel,
     }),
-  listModelTypes: async (): Promise<ListTagsResults> =>
-    sendRequest(apiKey, config, {
-      method: 'GET',
-      serviceKey: 'finetuning',
-      endpointKey: 'finetuningModelsTypes',
-      responseValidator: validateListTagsResults,
-    }),
-  startTraining: async (request: StartTrainingRequest): Promise<TrainingObject> =>
-    sendRequest(apiKey, config, {
-      method: 'POST',
-      serviceKey: 'finetuning',
-      endpointKey: 'finetuningTrainings',
-      body: { type: 'json', data: validateStartTrainingRequest(request) },
-      responseValidator: validateTrainingObject,
-    }),
-  listTrainings: async (request: ListTrainingsRequest = {}): Promise<ListTrainingsResults> =>
-    sendRequest(apiKey, config, {
-      method: 'GET',
-      serviceKey: 'finetuning',
-      endpointKey: 'finetuningTrainings',
-      queryParams: validateListTrainingsRequest(request),
-      responseValidator: validateListTrainingsResults,
-    }),
-  getTraining: async (trainingId: string): Promise<TrainingObject> =>
-    sendRequest(apiKey, config, {
-      method: 'GET',
-      serviceKey: 'finetuning',
-      endpointKey: 'finetuningTrainingsById',
-      pathParams: { id: trainingId },
-      responseValidator: validateTrainingObject,
-    }),
-  deleteTraining: async (trainingId: string): Promise<void> =>
-    sendRequest(apiKey, config, {
-      method: 'DELETE',
-      serviceKey: 'finetuning',
-      endpointKey: 'finetuningTrainingsById',
-      pathParams: { id: trainingId },
-    }),
-  stopTraining: async (trainingId: string): Promise<void> =>
-    sendRequest(apiKey, config, {
-      method: 'POST',
-      serviceKey: 'finetuning',
-      endpointKey: 'finetuningTrainingsStop',
-      pathParams: { id: trainingId },
-    }),
-  listEvents: async (
-    trainingId: string,
-    request: ListEventsRequest = {},
-  ): Promise<ListEventsResults> =>
-    sendRequest(apiKey, config, {
-      method: 'GET',
-      serviceKey: 'finetuning',
-      endpointKey: 'finetuningTrainingsEvents',
-      pathParams: { id: trainingId },
-      queryParams: validateListEventsRequest(request),
-      responseValidator: validateListEventsResults,
-    }),
-  getMetrics: async (
-    trainingId: string,
-    request: GetMetricsRequest,
-  ): Promise<ListMetricsResults> => {
-    const { metric, offset, limit } = validateGetMetricsRequest(request);
-
-    return sendRequest(apiKey, config, {
-      method: 'GET',
-      serviceKey: 'finetuning',
-      endpointKey: 'finetuningTrainingsMetrics',
-      pathParams: { id: trainingId, metric },
-      queryParams: { offset, limit },
-      responseValidator: validateListMetricsResults,
-    });
-  },
 });
+
+const createFinetuningApi = (apiKey: string, config: Config) => {
+  const modelsApi = createModelsApi(apiKey, config);
+
+  return {
+    createBaseModel: modelsApi.create,
+    listModels: modelsApi.list,
+    getModel: modelsApi.get,
+    startTraining: async (request: StartTrainingRequest): Promise<TrainingObject> =>
+      sendRequest(apiKey, config, {
+        method: 'POST',
+        serviceKey: 'finetuning',
+        endpointKey: 'finetuningTrainings',
+        body: { type: 'json', data: validateStartTrainingRequest(request) },
+        responseValidator: validateTrainingObject,
+      }),
+    listTrainings: async (request: ListTrainingsRequest = {}): Promise<ListTrainingsResults> =>
+      sendRequest(apiKey, config, {
+        method: 'GET',
+        serviceKey: 'finetuning',
+        endpointKey: 'finetuningTrainings',
+        queryParams: validateListTrainingsRequest(request),
+        responseValidator: validateListTrainingsResults,
+      }),
+    getTraining: async (trainingId: string): Promise<TrainingObject> =>
+      sendRequest(apiKey, config, {
+        method: 'GET',
+        serviceKey: 'finetuning',
+        endpointKey: 'finetuningTrainingsById',
+        pathParams: { id: trainingId },
+        responseValidator: validateTrainingObject,
+      }),
+    deleteTraining: async (trainingId: string): Promise<void> =>
+      sendRequest(apiKey, config, {
+        method: 'DELETE',
+        serviceKey: 'finetuning',
+        endpointKey: 'finetuningTrainingsById',
+        pathParams: { id: trainingId },
+      }),
+    stopTraining: async (trainingId: string): Promise<void> =>
+      sendRequest(apiKey, config, {
+        method: 'POST',
+        serviceKey: 'finetuning',
+        endpointKey: 'finetuningTrainingsStop',
+        pathParams: { id: trainingId },
+      }),
+    listEvents: async (
+      trainingId: string,
+      request: ListEventsRequest = {},
+    ): Promise<ListEventsResults> =>
+      sendRequest(apiKey, config, {
+        method: 'GET',
+        serviceKey: 'finetuning',
+        endpointKey: 'finetuningTrainingsEvents',
+        pathParams: { id: trainingId },
+        queryParams: validateListEventsRequest(request),
+        responseValidator: validateListEventsResults,
+      }),
+    getMetrics: async (
+      trainingId: string,
+      request: GetMetricsRequest,
+    ): Promise<ListMetricsResults> => {
+      const { metric, offset, limit } = validateGetMetricsRequest(request);
+
+      return sendRequest(apiKey, config, {
+        method: 'GET',
+        serviceKey: 'finetuning',
+        endpointKey: 'finetuningTrainingsMetrics',
+        pathParams: { id: trainingId, metric },
+        queryParams: { offset, limit },
+        responseValidator: validateListMetricsResults,
+      });
+    },
+    getEvaluations: async (trainingId: string): Promise<Record<string, unknown>> =>
+      sendRequest(apiKey, config, {
+        method: 'GET',
+        serviceKey: 'finetuning',
+        endpointKey: 'finetuningTrainingsEvaluations',
+        pathParams: { id: trainingId },
+      }),
+  };
+};
 
 export interface Client {
   comprehend: ReturnType<typeof createComprehendApi>;
@@ -844,6 +867,7 @@ export interface Client {
   instruct: ReturnType<typeof createInstructApi>;
   datasets: ReturnType<typeof createDatasetsApi>;
   finetuning: ReturnType<typeof createFinetuningApi>;
+  models: ReturnType<typeof createModelsApi>;
   /**
    * Create a client for an Open Model (standalone full model).
    *
@@ -894,6 +918,7 @@ export const createClient: CreateClient = (
     instruct: createInstructApi(resolvedApiKey, finalConfig),
     datasets: createDatasetsApi(resolvedApiKey, finalConfig),
     finetuning: createFinetuningApi(resolvedApiKey, finalConfig),
+    models: createModelsApi(resolvedApiKey, finalConfig),
     model: (modelId: string, method?: string) =>
       createOpenModelApi(sendRequest, resolvedApiKey, finalConfig, modelId, method),
   };

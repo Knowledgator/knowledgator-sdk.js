@@ -128,6 +128,7 @@ type MockResponse = {
   json: jest.MockedFunction<() => Promise<unknown>>;
 };
 type MockHttpClient = {
+  get: jest.MockedFunction<(path?: string, options?: HttpOptions) => Promise<Response>>;
   post: jest.MockedFunction<(path?: string, options?: HttpOptions) => Promise<Response>>;
 };
 const mockCreateHttpClient = createHttpClient as jest.MockedFunction<typeof createHttpClient>;
@@ -143,6 +144,7 @@ describe(createClient.name, () => {
       json: jest.fn(),
     };
     mockHttpClient = {
+      get: jest.fn().mockResolvedValue(mockResponse),
       post: jest.fn().mockResolvedValue(mockResponse),
     };
     mockCreateHttpClient.mockReturnValue(
@@ -1121,6 +1123,103 @@ describe(createClient.name, () => {
             'KnowledgatorAPI-Key': 'config-only-key',
           }),
         }),
+      );
+    });
+  });
+
+  describe('public models endpoints authentication handling', () => {
+    it('should omit KnowledgatorAPI-Key header when calling listModels', async () => {
+      const client = createClient('my-secret-key');
+      mockResponse.json.mockResolvedValue({
+        models: [{ id: 'model-1', name: 'model-1', type: 'ner' }],
+        total: 1,
+      });
+
+      await client.finetuning.listModels();
+
+      expect(mockCreateHttpClient).toHaveBeenCalledWith(
+        expect.objectContaining({
+          baseUrl: 'https://api.knowledgator.com',
+          baseHeaders: expect.not.objectContaining({
+            'KnowledgatorAPI-Key': expect.anything(),
+          }),
+        }),
+      );
+      expect(mockHttpClient.get).toHaveBeenCalledWith(
+        '/models/',
+        expect.objectContaining({
+          params: expect.any(Object),
+        }),
+      );
+    });
+
+    it('should omit KnowledgatorAPI-Key header when calling getModel', async () => {
+      const client = createClient('my-secret-key');
+      mockResponse.json.mockResolvedValue({
+        id: 'model-123',
+        name: 'model-123',
+        type: 'ner',
+      });
+
+      await client.finetuning.getModel('model-123');
+
+      expect(mockCreateHttpClient).toHaveBeenCalledWith(
+        expect.objectContaining({
+          baseUrl: 'https://api.knowledgator.com',
+          baseHeaders: expect.not.objectContaining({
+            'KnowledgatorAPI-Key': expect.anything(),
+          }),
+        }),
+      );
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/models/model-123/', expect.anything());
+    });
+
+    it('should allow listModels without apiKey without throwing ApiKeyRequiredError', async () => {
+      delete process.env.KG_API_KEY;
+      delete process.env.KG_MCP_API_KEY;
+      delete process.env.KNOWLEDGATOR_API_KEY;
+      const client = createClient();
+      mockResponse.json.mockResolvedValue({
+        models: [],
+        total: 0,
+      });
+
+      await expect(client.finetuning.listModels()).resolves.toBeDefined();
+    });
+
+    it('should support client.models.list and client.models.get directly', async () => {
+      const client = createClient();
+      mockResponse.json.mockResolvedValue({
+        models: [{ id: 'model-1', name: 'model-1', type: 'ner' }],
+        total: 1,
+      });
+
+      const res = await client.models.list();
+      expect(res.models).toHaveLength(1);
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/models/', expect.anything());
+    });
+
+    it('should call /trainings/:id/evaluations/ with auth header for getEvaluations', async () => {
+      const client = createClient('my-secret-key');
+      mockResponse.json.mockResolvedValue({
+        f1: 0.95,
+        accuracy: 0.98,
+      });
+
+      const res = await client.finetuning.getEvaluations('training-123');
+      expect(res).toEqual({ f1: 0.95, accuracy: 0.98 });
+
+      expect(mockCreateHttpClient).toHaveBeenCalledWith(
+        expect.objectContaining({
+          baseUrl: 'https://api.knowledgator.com',
+          baseHeaders: expect.objectContaining({
+            'KnowledgatorAPI-Key': 'my-secret-key',
+          }),
+        }),
+      );
+      expect(mockHttpClient.get).toHaveBeenCalledWith(
+        '/trainings/training-123/evaluations/',
+        expect.anything(),
       );
     });
   });

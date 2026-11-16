@@ -49,11 +49,11 @@ export interface EndpointConfig {
   readonly data?: string;
   readonly dataById?: string;
   readonly dataUpload?: string;
-  readonly finetuningModels?: string;
-  readonly finetuningModelsById?: string;
-  readonly finetuningModelsTypes?: string;
+  readonly models?: string;
+  readonly modelsById?: string;
   readonly finetuningTrainings?: string;
   readonly finetuningTrainingsById?: string;
+  readonly finetuningTrainingsEvaluations?: string;
   readonly finetuningTrainingsStop?: string;
   readonly finetuningTrainingsEvents?: string;
   readonly finetuningTrainingsMetrics?: string;
