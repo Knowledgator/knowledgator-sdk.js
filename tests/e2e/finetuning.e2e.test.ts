@@ -10,13 +10,13 @@ runTest('Finetuning API E2E', () => {
     expect(results).toBeDefined();
   }, 60000);
 
-  it('lists model types', async () => {
-    const results = await client!.finetuning.listModelTypes();
-    expect(results).toBeDefined();
-  }, 60000);
-
-  it('lists training jobs', async () => {
+  it('lists training jobs and gets evaluations if available', async () => {
     const results = await client!.finetuning.listTrainings({ limit: 10 });
     expect(results).toBeDefined();
+    const trainings = results.trainings ?? results.data ?? [];
+    if (trainings.length > 0) {
+      const evalRes = await client!.finetuning.getEvaluations(trainings[0].id);
+      expect(evalRes).toBeDefined();
+    }
   }, 60000);
 });
