@@ -1,65 +1,144 @@
 import * as v from 'valibot';
 
 // Response schemas
-const DatasetSchema = v.object({
+const DatasetSchema = v.pipe(
+  v.object({
+    id: v.string(),
+    name: v.string(),
+    type: v.string(),
+    format: v.optional(v.string(), 'json'),
+    status: v.optional(v.string(), 'ready'),
+    description: v.optional(v.string()),
+    short_description: v.optional(v.string()),
+    created_at: v.optional(v.string(), ''),
+    updated_at: v.optional(v.string(), ''),
+    file_count: v.optional(v.number()),
+    total_size: v.optional(v.number()),
+    examples_count: v.optional(v.number()),
+  }),
+  v.transform((dataset) => ({
+    id: dataset.id,
+    name: dataset.name,
+    type: dataset.type,
+    format: dataset.format,
+    status: dataset.status,
+    short_description: dataset.short_description ?? dataset.description,
+    created_at: dataset.created_at,
+    updated_at: dataset.updated_at,
+    file_count: dataset.file_count,
+    total_size: dataset.total_size,
+    examples_count: dataset.examples_count,
+  })),
+);
+
+const ListDatasetsResultsSchema = v.pipe(
+  v.looseObject({
+    data: v.optional(v.array(DatasetSchema)),
+    datasets: v.optional(v.array(DatasetSchema)),
+    total: v.optional(v.number(), 0),
+    offset: v.optional(v.number(), 0),
+    limit: v.optional(v.number(), 100),
+  }),
+  v.transform((raw) => ({
+    datasets: raw.data ?? raw.datasets ?? [],
+    total: raw.total ?? 0,
+    offset: raw.offset ?? 0,
+    limit: raw.limit ?? 100,
+  })),
+);
+
+const DatasetCreationResultsSchema = v.looseObject({
   id: v.string(),
+  name: v.optional(v.string()),
+  type: v.optional(v.string()),
+  format: v.optional(v.string()),
+  status: v.optional(v.string()),
+  created_at: v.optional(v.string()),
+});
+
+const FormatTagSchema = v.looseObject({
   name: v.string(),
-  type: v.string(),
-  format: v.string(),
-  status: v.string(),
   description: v.optional(v.string()),
-  created_at: v.string(),
-  updated_at: v.string(),
-  file_count: v.optional(v.number()),
-  total_size: v.optional(v.number()),
 });
 
-const ListDatasetsResultsSchema = v.object({
-  datasets: v.array(DatasetSchema),
-  total: v.number(),
-  offset: v.number(),
-  limit: v.number(),
-});
+const FormatItemSchema = v.union([v.string(), FormatTagSchema]);
 
-const DatasetCreationResultsSchema = v.object({
+const ListFormatsResultsSchema = v.pipe(
+  v.looseObject({
+    data: v.optional(v.array(FormatItemSchema)),
+    formats: v.optional(v.array(FormatItemSchema)),
+    total: v.optional(v.number(), 0),
+    offset: v.optional(v.number(), 0),
+    limit: v.optional(v.number(), 100),
+  }),
+  v.transform((raw) => {
+    const items = raw.data ?? raw.formats ?? [];
+    const formats = items.map((item) => (typeof item === 'string' ? { name: item } : item));
+    return {
+      formats,
+      total: raw.total ?? 0,
+      offset: raw.offset ?? 0,
+      limit: raw.limit ?? 100,
+    };
+  }),
+);
+
+const DataFileSchema = v.object({
   id: v.string(),
-  name: v.string(),
-  type: v.string(),
-  format: v.string(),
-  status: v.string(),
-  created_at: v.string(),
+  created_by_oauth_id: v.optional(v.string()),
+  created_at: v.optional(v.string()),
+  updated_at: v.optional(v.string()),
+  size: v.optional(v.number()),
 });
 
-const FormatTagSchema = v.object({
-  name: v.string(),
-  description: v.optional(v.string()),
-});
+const DataSchema = v.pipe(
+  v.object({
+    id: v.string(),
+    name: v.string(),
+    type: v.string(),
+    format: v.string(),
+    description: v.optional(v.string()),
+    short_description: v.optional(v.string()),
+    created_by_oauth_id: v.optional(v.string()),
+    created_at: v.optional(v.string(), ''),
+    updated_at: v.optional(v.string(), ''),
+    file_count: v.optional(v.number()),
+    total_size: v.optional(v.number()),
+    files: v.optional(v.array(DataFileSchema)),
+  }),
+  v.transform((dataItem) => ({
+    id: dataItem.id,
+    name: dataItem.name,
+    type: dataItem.type,
+    format: dataItem.format,
+    short_description: dataItem.short_description ?? dataItem.description,
+    created_by_oauth_id: dataItem.created_by_oauth_id,
+    created_at: dataItem.created_at,
+    updated_at: dataItem.updated_at,
+    file_count: dataItem.file_count,
+    total_size: dataItem.total_size,
+    files: dataItem.files,
+  })),
+);
 
-const ListFormatsResultsSchema = v.object({
-  formats: v.array(FormatTagSchema),
-  total: v.number(),
-  offset: v.number(),
-  limit: v.number(),
-});
-
-const DataSchema = v.object({
-  id: v.string(),
-  name: v.string(),
-  type: v.string(),
-  format: v.string(),
-  description: v.optional(v.string()),
-  created_at: v.string(),
-  updated_at: v.string(),
-  file_count: v.optional(v.number()),
-  total_size: v.optional(v.number()),
-});
-
-const ListDataResultsSchema = v.object({
-  data: v.array(DataSchema),
-  total: v.number(),
-  offset: v.number(),
-  limit: v.number(),
-});
+const ListDataResultsSchema = v.pipe(
+  v.looseObject({
+    data: v.optional(v.array(DataSchema)),
+    results: v.optional(v.array(DataSchema)),
+    total: v.optional(v.number(), 0),
+    offset: v.optional(v.number(), 0),
+    limit: v.optional(v.number(), 100),
+  }),
+  v.transform((raw) => {
+    const items = raw.data ?? raw.results ?? [];
+    return {
+      data: items,
+      total: raw.total ?? items.length,
+      offset: raw.offset ?? 0,
+      limit: raw.limit ?? 100,
+    };
+  }),
+);
 
 const DataCreationResultsSchema = v.object({
   id: v.string(),

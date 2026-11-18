@@ -25,19 +25,24 @@ const CreateDatasetRequestSchema = v.object({
   name: v.pipe(v.string(), v.minLength(1), v.maxLength(64), v.regex(DATASET_NAME_REGEX)),
   type: ServiceTypeEnum,
   format: DatasetFormatEnum,
-  description: v.optional(v.string()),
-  file: v.optional(v.instance(Blob)),
+  short_description: v.optional(v.string()),
+  parent_dataset_id: v.optional(v.string()),
+  file: v.optional(v.any()),
+  filePath: v.optional(v.string()),
+  file_path: v.optional(v.string()),
 });
 
 const UpdateDatasetRequestSchema = v.object({
   name: v.optional(
     v.pipe(v.string(), v.minLength(1), v.maxLength(64), v.regex(DATASET_NAME_REGEX)),
   ),
-  description: v.optional(v.string()),
+  short_description: v.optional(v.string()),
 });
 
 const UploadDatasetRequestSchema = v.object({
-  file: v.instance(Blob),
+  file: v.optional(v.any()),
+  filePath: v.optional(v.string()),
+  file_path: v.optional(v.string()),
 });
 
 const ListFormatsRequestSchema = v.object({
@@ -57,20 +62,39 @@ const CreateDataRequestSchema = v.object({
   name: v.pipe(v.string(), v.minLength(1), v.maxLength(64), v.regex(DATASET_NAME_REGEX)),
   type: ServiceTypeEnum,
   format: DatasetFormatEnum,
-  description: v.optional(v.string()),
-  file: v.optional(v.instance(Blob)),
+  short_description: v.optional(v.string()),
+  file: v.optional(v.any()),
+  filePath: v.optional(v.string()),
+  file_path: v.optional(v.string()),
 });
 
 const UpdateDataRequestSchema = v.object({
   name: v.optional(
     v.pipe(v.string(), v.minLength(1), v.maxLength(64), v.regex(DATASET_NAME_REGEX)),
   ),
-  description: v.optional(v.string()),
+  short_description: v.optional(v.string()),
 });
 
 const UploadDataRequestSchema = v.object({
-  file: v.instance(Blob),
+  file: v.optional(v.any()),
+  filePath: v.optional(v.string()),
+  file_path: v.optional(v.string()),
 });
+
+// Download options
+export interface DownloadDatasetOptions {
+  filePath?: string;
+  file_path?: string;
+  returnData?: boolean;
+  return_data?: boolean;
+  chunkSize?: number;
+  chunk_size?: number;
+}
+
+export interface StreamDownloadDatasetOptions {
+  chunkSize?: number;
+  chunk_size?: number;
+}
 
 // Request types
 export type ListDatasetsRequest = v.InferInput<typeof ListDatasetsRequestSchema>;

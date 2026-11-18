@@ -7,24 +7,24 @@ import {
 import { createHttpClient, HttpOptions } from '../../client/http';
 import {
   type ComprehendRequest,
-  type ExtractBaseRequest,
+  type ExtractRequest,
   type ExtractRelationsRequest,
   type ExtractSummaryRequest,
   type InstructItRequest,
   type FileMetadata,
   validateComprehendRequest,
-  validateExtractBaseRequest,
+  validateExtractRequest,
   validateExtractRelationsRequest,
   validateExtractSummaryRequest,
   validateInstructItRequest,
 } from '../../models/inputs';
 import {
-  validateExtractBaseResults,
+  validateExtractResults,
   validateExtractRelationsResults,
   validateExtractSummaryResults,
   validateComprehendResults,
   type ComprehendResults,
-  type ExtractBaseResults,
+  type ExtractResults,
   type ExtractRelationsResults,
   type ExtractSummaryResults,
   type InstructItResults,
@@ -39,6 +39,7 @@ import {
   RAPID_API_SERVERS,
 } from '../defaults';
 import type { EndpointConfig, ServerConfig } from '../types';
+import { getModelIdHeader } from '../utils';
 
 jest.mock('../../client/http');
 jest.mock('../../models/inputs', () => {
@@ -46,7 +47,7 @@ jest.mock('../../models/inputs', () => {
   return {
     ...actual,
     validateComprehendRequest: jest.fn(),
-    validateExtractBaseRequest: jest.fn(),
+    validateExtractRequest: jest.fn(),
     validateExtractRelationsRequest: jest.fn(),
     validateExtractSummaryRequest: jest.fn(),
     validateInstructItRequest: jest.fn(),
@@ -55,28 +56,32 @@ jest.mock('../../models/inputs', () => {
 jest.mock('../../models/outputs');
 
 const comprehendRequest: ComprehendRequest = {
-  text: '',
-  labels: [],
+  input: 'test',
+  tasks: { topic: { type: 'classify', labels: ['test'] } },
 };
-const extractBaseRequest: ExtractBaseRequest = {
-  text: '',
-  labels: [],
+const extractRequest: ExtractRequest = {
+  input: 'test',
+  tasks: { entities: { type: 'span', labels: ['test'] } },
 };
 const extractRelationsRequest: ExtractRelationsRequest = {
   text: '',
   relations: [],
+  entities: [],
 };
 const extractSummaryRequest: ExtractSummaryRequest = {
   text: '',
 };
 const instructItRequest: InstructItRequest = {
   text: 'Summarize this policy in 3 bullet points.',
+  template: '{"summary": ""}',
 };
 const comprehendResults: ComprehendResults = {
-  results: [],
+  results: {},
+  outputs: {},
 };
-const extractBaseResults: ExtractBaseResults = {
-  results: [],
+const extractResults: ExtractResults = {
+  results: {},
+  outputs: {},
 };
 const extractRelationsResults: ExtractRelationsResults = {
   results: [],
@@ -91,8 +96,8 @@ const instructItResults: InstructItResults = {
 const mockValidateComprehendRequest = validateComprehendRequest as jest.MockedFunction<
   typeof validateComprehendRequest
 >;
-const mockValidateExtractBaseRequest = validateExtractBaseRequest as jest.MockedFunction<
-  typeof validateExtractBaseRequest
+const mockValidateExtractRequest = validateExtractRequest as jest.MockedFunction<
+  typeof validateExtractRequest
 >;
 const mockValidateExtractRelationsRequest = validateExtractRelationsRequest as jest.MockedFunction<
   typeof validateExtractRelationsRequest
@@ -106,8 +111,8 @@ const mockValidateInstructItRequest = validateInstructItRequest as jest.MockedFu
 const mockValidateComprehendResults = validateComprehendResults as jest.MockedFunction<
   typeof validateComprehendResults
 >;
-const mockValidateExtractBaseResults = validateExtractBaseResults as jest.MockedFunction<
-  typeof validateExtractBaseResults
+const mockValidateExtractResults = validateExtractResults as jest.MockedFunction<
+  typeof validateExtractResults
 >;
 const mockValidateExtractRelationsResults = validateExtractRelationsResults as jest.MockedFunction<
   typeof validateExtractRelationsResults
@@ -123,6 +128,7 @@ type MockResponse = {
   json: jest.MockedFunction<() => Promise<unknown>>;
 };
 type MockHttpClient = {
+  get: jest.MockedFunction<(path?: string, options?: HttpOptions) => Promise<Response>>;
   post: jest.MockedFunction<(path?: string, options?: HttpOptions) => Promise<Response>>;
 };
 const mockCreateHttpClient = createHttpClient as jest.MockedFunction<typeof createHttpClient>;
@@ -138,6 +144,7 @@ describe(createClient.name, () => {
       json: jest.fn(),
     };
     mockHttpClient = {
+      get: jest.fn().mockResolvedValue(mockResponse),
       post: jest.fn().mockResolvedValue(mockResponse),
     };
     mockCreateHttpClient.mockReturnValue(
@@ -145,12 +152,12 @@ describe(createClient.name, () => {
     );
 
     mockValidateComprehendRequest.mockImplementation(() => comprehendRequest);
-    mockValidateExtractBaseRequest.mockImplementation(() => extractBaseRequest);
+    mockValidateExtractRequest.mockImplementation(() => extractRequest);
     mockValidateExtractRelationsRequest.mockImplementation(() => extractRelationsRequest);
     mockValidateExtractSummaryRequest.mockImplementation(() => extractSummaryRequest);
     mockValidateInstructItRequest.mockImplementation(() => instructItRequest);
     mockValidateComprehendResults.mockImplementation(() => comprehendResults);
-    mockValidateExtractBaseResults.mockImplementation(() => extractBaseResults);
+    mockValidateExtractResults.mockImplementation(() => extractResults);
     mockValidateExtractRelationsResults.mockImplementation(() => extractRelationsResults);
     mockValidateExtractSummaryResults.mockImplementation(() => extractSummaryResults);
     mockValidateInstructItResults.mockImplementation(() => instructItResults);
@@ -163,6 +170,7 @@ describe(createClient.name, () => {
       expect(client).toHaveProperty('comprehend');
       expect(client).toHaveProperty('extract');
       expect(client).toHaveProperty('instruct');
+      expect(client).toHaveProperty('finetuning');
       expect(client.comprehend).toHaveProperty('it');
       expect(client.extract).toHaveProperty('it');
       expect(client.extract).toHaveProperty('relations');
@@ -350,7 +358,7 @@ describe(createClient.name, () => {
       const result = await client.comprehend.it(comprehendRequest);
 
       expect(mockValidateComprehendRequest).toHaveBeenCalledWith(comprehendRequest);
-      expect(mockHttpClient.post).toHaveBeenCalledWith('/inference/comprehend', {
+      expect(mockHttpClient.post).toHaveBeenCalledWith('/inference/comprehend/', {
         body: JSON.stringify(comprehendRequest),
       });
       expect(mockValidateComprehendResults).toHaveBeenCalledWith(comprehendResults);
@@ -362,16 +370,16 @@ describe(createClient.name, () => {
     describe('it method', () => {
       it('should call extract it endpoint', async () => {
         const client = createClient('apiKey');
-        mockResponse.json.mockResolvedValue(extractBaseResults);
+        mockResponse.json.mockResolvedValue(extractResults);
 
-        const result = await client.extract.it(extractBaseRequest);
+        const result = await client.extract.it(extractRequest);
 
-        expect(mockValidateExtractBaseRequest).toHaveBeenCalledWith(extractBaseRequest);
-        expect(mockHttpClient.post).toHaveBeenCalledWith('/inference/extract', {
-          body: JSON.stringify(extractBaseRequest),
+        expect(mockValidateExtractRequest).toHaveBeenCalledWith(extractRequest);
+        expect(mockHttpClient.post).toHaveBeenCalledWith('/inference/extract/', {
+          body: JSON.stringify(extractRequest),
         });
-        expect(mockValidateExtractBaseResults).toHaveBeenCalledWith(extractBaseResults);
-        expect(result).toBe(extractBaseResults);
+        expect(mockValidateExtractResults).toHaveBeenCalledWith(extractResults);
+        expect(result).toBe(extractResults);
       });
     });
 
@@ -416,14 +424,15 @@ describe(createClient.name, () => {
       const result = await client.instruct.it(instructItRequest);
 
       expect(mockValidateInstructItRequest).toHaveBeenCalledWith(instructItRequest);
-      expect(mockHttpClient.post).toHaveBeenCalledWith('/inference/instruct', {
+      expect(mockHttpClient.post).toHaveBeenCalledWith('/inference/instruct/', {
         body: expect.any(FormData),
       });
 
-      // Verify FormData contains the text field
+      // Verify FormData contains the text field and template
       const callArgs = mockHttpClient.post.mock.calls[0];
       const formData = callArgs[1]!.body as FormData;
       expect(formData.get('text')).toBe('Summarize this policy in 3 bullet points.');
+      expect(formData.get('template')).toBe('{"summary": ""}');
 
       expect(mockValidateInstructItResults).toHaveBeenCalledWith(instructItResults);
       expect(result).toBe(instructItResults);
@@ -455,11 +464,31 @@ describe(createClient.name, () => {
       expect(result).toBe(instructItResults);
     });
 
+    it('should serialize object template to JSON string in FormData', async () => {
+      const client = createClient('apiKey');
+      const requestWithObjTemplate: InstructItRequest = {
+        text: 'Extract info',
+        template: { summary: '', key_points: [] },
+      };
+      mockValidateInstructItRequest.mockImplementation(() => requestWithObjTemplate);
+      mockResponse.json.mockResolvedValue(instructItResults);
+
+      const result = await client.instruct.it(requestWithObjTemplate);
+
+      expect(mockValidateInstructItRequest).toHaveBeenCalledWith(requestWithObjTemplate);
+      const callArgs = mockHttpClient.post.mock.calls[0];
+      const formData = callArgs[1]!.body as FormData;
+      expect(formData.get('text')).toBe('Extract info');
+      expect(formData.get('template')).toBe(JSON.stringify({ summary: '', key_points: [] }));
+      expect(result).toBe(instructItResults);
+    });
+
     it('should handle file references without content', async () => {
       const client = createClient('apiKey');
       const files: FileMetadata[] = [{ name: 'file-id-1' }, { name: 'file-id-2' }];
       const requestWithFiles: InstructItRequest = {
         text: 'Compare these two documents',
+        template: '{"comparison": ""}',
         files,
       };
       mockValidateInstructItRequest.mockImplementation(() => requestWithFiles);
@@ -473,6 +502,7 @@ describe(createClient.name, () => {
       const callArgs = mockHttpClient.post.mock.calls[0];
       const formData = callArgs[1]!.body as FormData;
       expect(formData.get('text')).toBe('Compare these two documents');
+      expect(formData.get('template')).toBe('{"comparison": ""}');
       expect(formData.get('filesmetadata')).toBe(JSON.stringify(['file-id-1', 'file-id-2']));
 
       // Verify no file parts were added (only metadata)
@@ -491,6 +521,7 @@ describe(createClient.name, () => {
       ];
       const requestWithContent: InstructItRequest = {
         text: 'Process this document',
+        template: '{"steps": []}',
         files,
         output_type: 'list',
       };
@@ -503,6 +534,7 @@ describe(createClient.name, () => {
       const callArgs = mockHttpClient.post.mock.calls[0];
       const formData = callArgs[1]!.body as FormData;
       expect(formData.get('text')).toBe('Process this document');
+      expect(formData.get('template')).toBe('{"steps": []}');
       expect(formData.get('output_type')).toBe('list');
       expect(formData.get('filesmetadata')).toBe(JSON.stringify(['document.pdf']));
 
@@ -650,17 +682,17 @@ describe(createClient.name, () => {
         expect(mockHttpClient.post).not.toHaveBeenCalled();
       });
 
-      it('should throw error when extract base request validation fails', async () => {
+      it('should throw error when extract request validation fails', async () => {
         const client = createClient('apiKey');
-        mockValidateExtractBaseRequest.mockImplementation(() => {
-          throw new Error('Invalid extract base request');
+        mockValidateExtractRequest.mockImplementation(() => {
+          throw new Error('Invalid extract request');
         });
 
-        await expect(client.extract.it({} as ExtractBaseRequest)).rejects.toThrow(
-          'Invalid extract base request',
+        await expect(client.extract.it({} as ExtractRequest)).rejects.toThrow(
+          'Invalid extract request',
         );
 
-        expect(mockValidateExtractBaseRequest).toHaveBeenCalledWith({});
+        expect(mockValidateExtractRequest).toHaveBeenCalledWith({});
         expect(mockHttpClient.post).not.toHaveBeenCalled();
       });
 
@@ -724,20 +756,18 @@ describe(createClient.name, () => {
         expect(mockValidateComprehendResults).toHaveBeenCalledWith({});
       });
 
-      it('should throw error when extract base response validation fails', async () => {
+      it('should throw error when extract response validation fails', async () => {
         const client = createClient('apiKey', {
           validateResponses: true,
         });
         mockResponse.json.mockResolvedValue({});
-        mockValidateExtractBaseResults.mockImplementation(() => {
-          throw new Error('Invalid extract base response');
+        mockValidateExtractResults.mockImplementation(() => {
+          throw new Error('Invalid extract response');
         });
 
-        await expect(client.extract.it(extractBaseRequest)).rejects.toThrow(
-          'Invalid extract base response',
-        );
+        await expect(client.extract.it(extractRequest)).rejects.toThrow('Invalid extract response');
 
-        expect(mockValidateExtractBaseResults).toHaveBeenCalledWith({});
+        expect(mockValidateExtractResults).toHaveBeenCalledWith({});
       });
 
       it('should throw error when extract relations response validation fails', async () => {
@@ -897,9 +927,9 @@ describe(createClient.name, () => {
 
       it('should use KnowledgatorAPI-Key header for extract service', async () => {
         const client = createClient('test-api-key');
-        mockResponse.json.mockResolvedValue(extractBaseResults);
+        mockResponse.json.mockResolvedValue(extractResults);
 
-        await client.extract.it(extractBaseRequest);
+        await client.extract.it(extractRequest);
 
         expect(mockCreateHttpClient).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -956,9 +986,9 @@ describe(createClient.name, () => {
         const client = createClient('test-rapidapi-key', {
           provider: 'rapidapi',
         });
-        mockResponse.json.mockResolvedValue(extractBaseResults);
+        mockResponse.json.mockResolvedValue(extractResults);
 
-        await client.extract.it(extractBaseRequest);
+        await client.extract.it(extractRequest);
 
         expect(mockCreateHttpClient).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -1009,9 +1039,9 @@ describe(createClient.name, () => {
           }),
         );
 
-        mockResponse.json.mockResolvedValue(extractBaseResults);
+        mockResponse.json.mockResolvedValue(extractResults);
 
-        await client.extract.it(extractBaseRequest);
+        await client.extract.it(extractRequest);
         expect(mockCreateHttpClient).toHaveBeenLastCalledWith(
           expect.objectContaining({
             baseUrl: 'https://extract-it.p.rapidapi.com',
@@ -1033,6 +1063,164 @@ describe(createClient.name, () => {
           }),
         );
       });
+    });
+  });
+
+  describe('dual headers and environment variable resolution', () => {
+    const originalEnv = process.env;
+
+    beforeEach(() => {
+      process.env = { ...originalEnv };
+    });
+
+    afterAll(() => {
+      process.env = originalEnv;
+    });
+
+    it('should generate auth headers in getDefaultHeaders', () => {
+      const headers = getDefaultHeaders('my-secret-key');
+      expect(headers).toEqual({
+        'Content-Type': 'application/json',
+        'KnowledgatorAPI-Key': 'my-secret-key',
+      });
+    });
+
+    it('should generate model header in getModelIdHeader', () => {
+      const headers = getModelIdHeader('model-xyz');
+      expect(headers).toEqual({
+        'KnowledgatorAPI-Model-ID': 'model-xyz',
+      });
+
+      expect(getModelIdHeader(undefined)).toBeUndefined();
+    });
+
+    it('should auto-resolve apiKey from process.env.KG_API_KEY when no apiKey argument is passed', async () => {
+      process.env.KG_API_KEY = 'ambient-env-key';
+      const client = createClient();
+
+      mockResponse.json.mockResolvedValue(comprehendResults);
+      await client.comprehend.it(comprehendRequest);
+
+      expect(mockCreateHttpClient).toHaveBeenCalledWith(
+        expect.objectContaining({
+          baseHeaders: expect.objectContaining({
+            'KnowledgatorAPI-Key': 'ambient-env-key',
+          }),
+        }),
+      );
+    });
+
+    it('should support config-only createClient(config) signature with env fallback', async () => {
+      process.env.KG_API_KEY = 'config-only-key';
+      const client = createClient({ debug: true });
+
+      mockResponse.json.mockResolvedValue(comprehendResults);
+      await client.comprehend.it(comprehendRequest);
+
+      expect(mockCreateHttpClient).toHaveBeenCalledWith(
+        expect.objectContaining({
+          baseHeaders: expect.objectContaining({
+            'KnowledgatorAPI-Key': 'config-only-key',
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('public models endpoints authentication handling', () => {
+    it('should omit KnowledgatorAPI-Key header when calling listModels', async () => {
+      const client = createClient('my-secret-key');
+      mockResponse.json.mockResolvedValue({
+        models: [{ id: 'model-1', name: 'model-1', type: 'ner' }],
+        total: 1,
+      });
+
+      await client.finetuning.listModels();
+
+      expect(mockCreateHttpClient).toHaveBeenCalledWith(
+        expect.objectContaining({
+          baseUrl: 'https://api.knowledgator.com',
+          baseHeaders: expect.not.objectContaining({
+            'KnowledgatorAPI-Key': expect.anything(),
+          }),
+        }),
+      );
+      expect(mockHttpClient.get).toHaveBeenCalledWith(
+        '/models/',
+        expect.objectContaining({
+          params: expect.any(Object),
+        }),
+      );
+    });
+
+    it('should omit KnowledgatorAPI-Key header when calling getModel', async () => {
+      const client = createClient('my-secret-key');
+      mockResponse.json.mockResolvedValue({
+        id: 'model-123',
+        name: 'model-123',
+        type: 'ner',
+      });
+
+      await client.finetuning.getModel('model-123');
+
+      expect(mockCreateHttpClient).toHaveBeenCalledWith(
+        expect.objectContaining({
+          baseUrl: 'https://api.knowledgator.com',
+          baseHeaders: expect.not.objectContaining({
+            'KnowledgatorAPI-Key': expect.anything(),
+          }),
+        }),
+      );
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/models/model-123/', expect.anything());
+    });
+
+    it('should allow listModels without apiKey without throwing ApiKeyRequiredError', async () => {
+      delete process.env.KG_API_KEY;
+      delete process.env.KG_MCP_API_KEY;
+      delete process.env.KNOWLEDGATOR_API_KEY;
+      const client = createClient();
+      mockResponse.json.mockResolvedValue({
+        models: [],
+        total: 0,
+      });
+
+      await expect(client.finetuning.listModels()).resolves.toBeDefined();
+    });
+
+    it('should support client.models.list and client.models.get directly', async () => {
+      const client = createClient();
+      mockResponse.json.mockResolvedValue({
+        models: [{ id: 'model-1', name: 'model-1', type: 'ner' }],
+        total: 1,
+      });
+
+      const res = await client.models.list();
+      expect(res.models).toHaveLength(1);
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/models/', expect.anything());
+    });
+
+    it('should call /trainings/:id/evaluations/ with auth header for getEvaluations', async () => {
+      const client = createClient('my-secret-key');
+      mockResponse.json.mockResolvedValue({
+        f1: 0.95,
+        accuracy: 0.98,
+      });
+
+      const res = await client.finetuning.getEvaluations('training-123');
+      expect(res).toEqual({ f1: 0.95, accuracy: 0.98 });
+
+      expect(mockCreateHttpClient).toHaveBeenCalledWith(
+        expect.objectContaining({
+          baseUrl: 'https://api.knowledgator.com',
+          baseHeaders: expect.objectContaining({
+            'KnowledgatorAPI-Key': 'my-secret-key',
+          }),
+        }),
+      );
+      expect(mockHttpClient.get).toHaveBeenCalledWith(
+        '/trainings/training-123/evaluations/',
+        expect.anything(),
+      );
     });
   });
 });

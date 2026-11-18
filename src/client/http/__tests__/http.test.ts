@@ -143,6 +143,7 @@ describe(createHttpClient.name, () => {
           headers: new Headers(),
           signal: mockSignal,
           body: undefined,
+          redirect: 'follow',
         });
       },
     );
@@ -158,6 +159,7 @@ describe(createHttpClient.name, () => {
         headers: new Headers(),
         signal: mockSignal,
         body,
+        redirect: 'follow',
       });
     });
   });
@@ -278,6 +280,7 @@ describe(createHttpClient.name, () => {
         headers: new Headers(),
         signal: mockSignal,
         body: undefined,
+        redirect: 'follow',
       });
     });
 

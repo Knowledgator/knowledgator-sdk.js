@@ -68,6 +68,18 @@ describe('Fine-tuning Module', () => {
         expect(() => validateListModelsRequest(request)).not.toThrow();
       });
 
+      it('should validate list models request with object_type and trainable', () => {
+        const request: ListModelsRequest = {
+          offset: 0,
+          limit: 20,
+          object_type: 'adapter',
+          trainable: 'adapter',
+          inference: 'comprehend-it',
+        };
+
+        expect(() => validateListModelsRequest(request)).not.toThrow();
+      });
+
       it('should accept empty request', () => {
         const request = {};
 
@@ -204,6 +216,26 @@ describe('Fine-tuning Module', () => {
         };
 
         expect(() => validateTrainingModel(model)).not.toThrow();
+      });
+
+      it('should validate model with string num_of_parameters and new fields', () => {
+        const model = {
+          id: 'model-456',
+          name: 'large-model',
+          type: 'text-classification',
+          num_of_parameters: '494M',
+          fine_tuned: true,
+          parent_model: 'base-model-id',
+          inference: 'comprehend-it',
+          tags: ['qa', 'nlp'],
+          tasks: ['classification'],
+          modalities: ['text'],
+        };
+
+        const parsed = validateTrainingModel(model);
+        expect(parsed.num_of_parameters).toBe('494M');
+        expect(parsed.fine_tuned).toBe(true);
+        expect(parsed.parent_model).toBe('base-model-id');
       });
     });
 
@@ -361,6 +393,110 @@ describe('Fine-tuning Module', () => {
         };
 
         expect(() => validateListMetricsResults(results)).not.toThrow();
+      });
+    });
+
+    describe('Resilient Aliases and Backend Key Variations', () => {
+      it('should parse TrainingObject with training_id, parent_model_id, last_updated_at, args, and nested training.dataset_id', () => {
+        const rawBackendData = {
+          training_id: 'tr-999',
+          name: 'my-training-run',
+          parent_model_id: 'm-base-1',
+          training: {
+            dataset_id: 'ds-nested-888',
+            args: { lr: 0.0001, batch_size: 16 },
+          },
+          status: 'running',
+          created_at: '2024-02-01T10:00:00Z',
+          last_updated_at: '2024-02-01T10:05:00Z',
+        };
+
+        const parsed = validateTrainingObject(rawBackendData);
+        expect(parsed.id).toBe('tr-999');
+        expect(parsed.model_id).toBe('m-base-1');
+        expect(parsed.dataset_id).toBe('ds-nested-888');
+        expect(parsed.updated_at).toBe('2024-02-01T10:05:00Z');
+        expect(parsed.hyperparameters).toEqual({ lr: 0.0001, batch_size: 16 });
+      });
+
+      it('should parse TrainingModel with model_id alias', () => {
+        const rawModel = {
+          model_id: 'm-custom-42',
+          name: 'custom-ner-model',
+          type: 'ner',
+          created_at: '2024-01-01T00:00:00Z',
+        };
+
+        const parsed = validateTrainingModel(rawModel);
+        expect(parsed.id).toBe('m-custom-42');
+        expect(parsed.name).toBe('custom-ner-model');
+      });
+
+      it('should parse ObjectCreation with training_id alias', () => {
+        const rawCreation = {
+          training_id: 'tr-created-1',
+        };
+
+        const parsed = validateObjectCreation(rawCreation);
+        expect(parsed.id).toBe('tr-created-1');
+      });
+
+      it('should parse ListModelsResults with results alias', () => {
+        const rawList = {
+          results: [{ model_id: 'm-1', name: 'model 1' }],
+        };
+
+        const parsed = validateListModelsResults(rawList);
+        expect(parsed.models.length).toBe(1);
+        expect(parsed.models[0].id).toBe('m-1');
+        expect(parsed.total).toBe(1);
+      });
+
+      it('should parse ListTrainingsResults with results alias', () => {
+        const rawList = {
+          results: [{ training_id: 'tr-1', status: 'completed' }],
+        };
+
+        const parsed = validateListTrainingsResults(rawList);
+        expect(parsed.trainings.length).toBe(1);
+        expect(parsed.trainings[0].id).toBe('tr-1');
+        expect(parsed.total).toBe(1);
+      });
+
+      it('should parse ListTagsResults with types alias', () => {
+        const rawList = {
+          types: [{ name: 'ner' }, { name: 'comprehend' }],
+        };
+
+        const parsed = validateListTagsResults(rawList);
+        expect(parsed.tags.length).toBe(2);
+        expect(parsed.total).toBe(2);
+      });
+
+      it('should parse TrainingEvent with type and timestamp aliases', () => {
+        const rawEvent = {
+          id: 'ev-1',
+          training_id: 'tr-1',
+          type: 'checkpoint_saved',
+          message: 'Saved model weights',
+          timestamp: '2024-01-01T12:00:00Z',
+        };
+
+        const parsed = validateListEventsResults({ events: [rawEvent] });
+        expect(parsed.events[0].event_type).toBe('checkpoint_saved');
+        expect(parsed.events[0].created_at).toBe('2024-01-01T12:00:00Z');
+      });
+
+      it('should parse ListMetricsResults with values alias', () => {
+        const rawMetrics = {
+          metric: 'loss',
+          values: [{ step: 10, value: 0.12 }],
+        };
+
+        const parsed = validateListMetricsResults(rawMetrics);
+        expect(parsed.data.length).toBe(1);
+        expect(parsed.data[0].step).toBe(10);
+        expect(parsed.data[0].value).toBe(0.12);
       });
     });
   });

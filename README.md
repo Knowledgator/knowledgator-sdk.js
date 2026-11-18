@@ -67,18 +67,24 @@ npm run build
 
 Before using the SDK, obtain a Knowledgator API key from [api.knowledgator.com](https://api.knowledgator.com/account/api-keys).
 
-Pass the API key directly when initializing the client.
+The SDK supports zero-config initialization via environment variables (`KG_API_KEY`, `KG_MCP_API_KEY`, or `KNOWLEDGATOR_API_KEY`), or direct API key / Bearer token strings.
 
 ### SDK Example Usage
 
 ```typescript
 import { createClient } from '@knowledgator/typescript-sdk';
 
-const client = createClient('your-api-key-here');
+// Automatically reads KG_API_KEY, KG_MCP_API_KEY, or KNOWLEDGATOR_API_KEY from environment
+const client = createClient();
 
 const response = await client.comprehend.it({
   text: 'Earth is beautiful',
-  labels: ['positive', 'negative', 'neutral'],
+  tasks: {
+    topic: {
+      type: 'classify',
+      labels: ['positive', 'negative', 'neutral'],
+    },
+  },
 });
 
 console.log(response);
@@ -95,12 +101,18 @@ const client = createClient('your-api-key-here');
 
 const result = await client.comprehend.it({
   text: 'Earth is beautiful',
-  labels: ['geography', 'sport'],
-  threshold: 0.5,
-  examples: [{ text: 'Example text', label: 'geography' }],
+  tasks: {
+    topic: {
+      type: 'classify',
+      labels: ['geography', 'sport'],
+      threshold: 0.5,
+      examples: [{ text: 'Example text', label: 'geography' }],
+    },
+  },
 });
 
 console.log(result); // Outputs ComprehendResults with classifications
+console.log(result.outputs.topic); // Directly access parsed task output
 ```
 
 ## Table of Contents
@@ -135,12 +147,18 @@ const client = createClient('your-api-key-here');
 
 const result = await client.extract.it({
   text: 'Extract entities from this text.',
-  labels: ['person', 'location'],
-  threshold: 0.5,
-  prompt: 'Custom prompt for extraction',
+  tasks: {
+    entities: {
+      type: 'span',
+      labels: ['person', 'location'],
+      threshold: 0.5,
+      instruction: 'Custom prompt for extraction',
+    },
+  },
 });
 
-console.log(result); // Outputs ExtractBaseResults with entities
+console.log(result); // Outputs ExtractResults with entities
+console.log(result.outputs.entities); // Directly access parsed task output
 ```
 
 ## Relation Extraction
@@ -150,18 +168,18 @@ Use `extract.relations` for extracting relations between entities.
 ```typescript
 import { createClient } from '@knowledgator/typescript-sdk';
 
-const client = createClient('your-api-key-here');
+const client = createClient();
 
 const result = await client.extract.relations({
   text: 'Text with entities and relations.',
-  entities: ['person', 'organization'],
+  entities: ['person', 'organization'], // 'entities' is the primary field ('labels' is accepted as an alias)
   relations: ['works_for', 'located_in'],
   threshold: 0.5,
   prompt: 'Custom relation prompt',
   rules: [{ rule: 'example rule' }],
 });
 
-console.log(result); // Outputs ExtractRelationsResults
+console.log(result.outputs); // Outputs array of extracted RelationResult objects
 ```
 
 ## Summarization
@@ -229,16 +247,36 @@ console.log(result); // Outputs ListDatasetsResults
 ```typescript
 import { createClient } from '@knowledgator/typescript-sdk';
 
-const client = createClient('your-api-key-here');
+const client = createClient();
 
 const result = await client.datasets.create({
   name: 'My NER Dataset',
   type: 'ner',
   format: 'jsonl',
-  description: 'Dataset for named entity recognition',
+  short_description: 'Dataset for named entity recognition',
+  parent_dataset_id: '73a078ff-360a-48ea-bb2f-fe6add05289e', // Links to parent dataset for version control
 });
 
-console.log(result); // Outputs DatasetCreationResults
+console.log(result); // Outputs DatasetCreationResponse { id, status }
+```
+
+### Download Dataset
+
+```typescript
+import { createClient } from '@knowledgator/typescript-sdk';
+
+const client = createClient();
+
+// Direct download to local file
+await client.datasets.download('dataset-uuid', { filePath: './dataset.json' });
+
+// In-memory parse
+const data = await client.datasets.download('dataset-uuid', { returnData: true });
+
+// Streaming chunks with async generator (memory-efficient for large datasets)
+for await (const chunk of client.datasets.streamDownload('dataset-uuid')) {
+  // Process chunk (Uint8Array)
+}
 ```
 
 ### Upload File to Dataset
@@ -247,7 +285,7 @@ console.log(result); // Outputs DatasetCreationResults
 import { createClient } from '@knowledgator/typescript-sdk';
 import { readFileSync } from 'fs';
 
-const client = createClient('your-api-key-here');
+const client = createClient();
 
 const file = readFileSync('data.jsonl');
 const result = await client.datasets.upload('dataset-id', { file });
@@ -344,26 +382,74 @@ console.log(result); // Outputs ListMetricsResults
 
 ## Open Models
 
-Interact with custom or finetuned models using dynamic model identifiers.
+Interact with custom or finetuned standalone full models using dynamic model identifiers.
 
 ```typescript
 import { createClient } from '@knowledgator/typescript-sdk';
 
 const client = createClient('your-api-key-here');
 
-// Initialize a model client
-const model = client.model('your-model-id');
+// Initialize a model client for a standalone full model
+const model = client.model('m-d9be7ede307943439a30c6f814026566');
 
-// Generic prediction
-const response = await model.predict({ input: 'text to process' });
+// Default prediction invokes POST /inference/{model_id}/
+const response = await model.predict({
+  text: 'Smartphone with 120Hz OLED screen and 5000mAh battery',
+  labels: ['Electronics', 'Apparel', 'Home Goods'],
+});
 
-// Shorthand for method-based inference
-const generator = client.model('your-model-id', 'generate');
-const result = await generator.predict({ prompt: 'Tell me a story.' });
+// Shorthand for method-based inference (invokes POST /inference/{model_id}/{method}/)
+const extractor = client.model('m-d9be7ede307943439a30c6f814026566', 'relations');
+const result = await extractor.predict({ text: 'Apple released iPhone in Cupertino.' });
 
-// Explicitly call a specific method
-const summary = await generator.call('summarize', { text: '...' });
+// Explicitly call a specific sub-method
+const summary = await model.call('relations', { text: 'Apple released iPhone in Cupertino.' });
 ```
+
+## Model Types: LoRA Adapters vs. Open Models
+
+Knowledgator supports two distinct types of fine-tuned and custom models:
+
+| Model Type | Platform Representation | Where to Run Inference | How to Call |
+| :--- | :--- | :--- | :--- |
+| **LoRA Adapters** | `type="adapter"` (attached to a base service like `comprehend-it` or `extract-it`) | Base Service Endpoint (`/inference/comprehend/`, `/inference/extract/`) with `KnowledgatorAPI-Model-ID` header | `client.comprehend.it({ ..., adapter_id: "<adapter-id>" })` |
+| **Open Models** | `type="model"` (standalone full model, e.g. fine-tuned `gliclass-x-base`, `gliner-base`) | Dedicated Endpoint (`/inference/{model_id}/` or `/inference/{model_id}/{method}/`) | `client.model("<model-id>").predict(...)` or `client.model("<model-id>", "<method>").predict(...)` |
+
+### Using a LoRA Adapter
+
+When fine-tuning creates a lightweight adapter (`type="adapter"`), supply `adapter_id`:
+
+```typescript
+// Zero-shot classification with your fine-tuned LoRA adapter
+const res = await client.comprehend.it({
+  text: 'Smartphone with 120Hz OLED screen and 5000mAh battery',
+  tasks: {
+    topic: {
+      type: 'classify',
+      labels: ['Electronics', 'Apparel', 'Home Goods'],
+    },
+  },
+  adapter_id: 'your-adapter-id', // Automatically passes KnowledgatorAPI-Model-ID header
+});
+```
+
+### Using a Full Open Model
+
+When fine-tuning produces a standalone model or when using standalone full models (`type="model"`), route through `client.model(...)`:
+
+```typescript
+// Predict using a standalone full open model (e.g. fine-tuned gliclass or gliner)
+const model = client.model('m-d9be7ede307943439a30c6f814026566');
+
+// The input payload matches the expected schema of the model (e.g. text + labels)
+const res = await model.predict({
+  text: 'Smartphone with 120Hz OLED screen and 5000mAh battery',
+  labels: ['Electronics', 'Apparel', 'Home Goods'],
+});
+console.log(res);
+```
+
+> ⚠️ **Important**: Do not pass a standalone Open Model ID as `adapter_id` to `comprehend.it` or `extract.it`. The base service will reject it with HTTP 503 (`server.resource_unavailable`). Always use `client.model(model_id).predict(...)` for Open Models.
 
 ## Configuration Options
 
@@ -422,7 +508,12 @@ const client = createClient('your-rapidapi-key-here', {
 // Usage is the same as above
 const result = await client.comprehend.it({
   text: 'Text to classify',
-  labels: ['positive', 'negative'],
+  tasks: {
+    topic: {
+      type: 'classify',
+      labels: ['positive', 'negative'],
+    },
+  },
 });
 ```
 
@@ -477,8 +568,8 @@ import type {
   EndpointConfig,
   ComprehendRequest,
   ComprehendResults,
-  ExtractBaseRequest,
-  ExtractBaseResults,
+  ExtractRequest,
+  ExtractResults,
   ExtractRelationsRequest,
   ExtractRelationsResults,
   ExtractSummaryResults,
@@ -525,7 +616,12 @@ const client = createClient('your-api-key-here');
 try {
   const result = await client.comprehend.it({
     text: 'text',
-    labels: ['labels'],
+    tasks: {
+      topic: {
+        type: 'classify',
+        labels: ['label1', 'label2'],
+      },
+    },
   });
   console.log(result);
 } catch (error) {
@@ -610,8 +706,8 @@ The SDK is built with TypeScript and provides full type safety:
 import type {
   ComprehendRequest,
   ComprehendResults,
-  ExtractBaseRequest,
-  ExtractBaseResults,
+  ExtractRequest,
+  ExtractResults,
   ExtractRelationsRequest,
   ExtractRelationsResults,
   ExtractSummaryRequest,
@@ -621,8 +717,13 @@ import type {
 // All request and response objects are fully typed
 const request: ComprehendRequest = {
   text: 'Sample text',
-  labels: ['positive', 'negative'],
-  threshold: 0.7, // TypeScript ensures this is between 0 and 1
+  tasks: {
+    sentiment: {
+      type: 'classify',
+      labels: ['positive', 'negative'],
+      threshold: 0.7, // TypeScript ensures this is between 0 and 1
+    },
+  },
 };
 ```
 

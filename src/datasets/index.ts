@@ -10,6 +10,8 @@ export {
   type CreateDataRequest,
   type UpdateDataRequest,
   type UploadDataRequest,
+  type DownloadDatasetOptions,
+  type StreamDownloadDatasetOptions,
   DatasetFormatEnum,
   DatasetStatusEnum,
   validateListDatasetsRequest,

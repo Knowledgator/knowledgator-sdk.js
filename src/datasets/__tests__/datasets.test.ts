@@ -54,12 +54,12 @@ const createDatasetRequest: CreateDatasetRequest = {
   name: 'test-dataset',
   type: 'ner',
   format: 'jsonl',
-  description: 'Test dataset',
+  short_description: 'Test dataset',
 };
 
 const updateDatasetRequest: UpdateDatasetRequest = {
   name: 'updated-dataset',
-  description: 'Updated description',
+  short_description: 'Updated description',
 };
 
 const uploadDatasetRequest: UploadDatasetRequest = {
@@ -77,6 +77,7 @@ const dataset: Dataset = {
   type: 'ner',
   format: 'jsonl',
   status: 'ready',
+  short_description: 'Test dataset',
   created_at: '2024-01-01T00:00:00Z',
   updated_at: '2024-01-01T00:00:00Z',
 };
@@ -186,6 +187,8 @@ describe('Datasets API', () => {
       expect(client.datasets).toHaveProperty('update');
       expect(client.datasets).toHaveProperty('delete');
       expect(client.datasets).toHaveProperty('upload');
+      expect(client.datasets).toHaveProperty('download');
+      expect(client.datasets).toHaveProperty('streamDownload');
       expect(client.datasets).toHaveProperty('listFormats');
     });
   });
@@ -198,7 +201,7 @@ describe('Datasets API', () => {
       const result = await client.datasets.list(listDatasetsRequest);
 
       expect(mockValidateListDatasetsRequest).toHaveBeenCalledWith(listDatasetsRequest);
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/datasets', {
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/datasets/', {
         params: { offset: 0, limit: 10 },
       });
       expect(mockValidateListDatasetsResults).toHaveBeenCalledWith(listDatasetsResults);
@@ -212,7 +215,7 @@ describe('Datasets API', () => {
 
       const result = await client.datasets.list();
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/datasets', {
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/datasets/', {
         params: {},
       });
       expect(result).toBe(listDatasetsResults);
@@ -234,7 +237,7 @@ describe('Datasets API', () => {
       await client.datasets.list(requestWithFilters);
 
       // Note: null/undefined filtering is now handled by the http client's buildUrl
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/datasets', {
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/datasets/', {
         params: requestWithFilters,
       });
     });
@@ -248,7 +251,7 @@ describe('Datasets API', () => {
       const result = await client.datasets.create(createDatasetRequest);
 
       expect(mockValidateCreateDatasetRequest).toHaveBeenCalledWith(createDatasetRequest);
-      expect(mockHttpClient.post).toHaveBeenCalledWith('/datasets', {
+      expect(mockHttpClient.post).toHaveBeenCalledWith('/datasets/', {
         body: expect.any(FormData),
       });
 
@@ -257,7 +260,7 @@ describe('Datasets API', () => {
       expect(formData.get('name')).toBe('test-dataset');
       expect(formData.get('type')).toBe('ner');
       expect(formData.get('format')).toBe('jsonl');
-      expect(formData.get('description')).toBe('Test dataset');
+      expect(formData.get('short_description')).toBe('Test dataset');
 
       expect(mockValidateDatasetCreationResults).toHaveBeenCalledWith(datasetCreationResults);
       expect(result).toBe(datasetCreationResults);
@@ -288,7 +291,7 @@ describe('Datasets API', () => {
 
       const result = await client.datasets.get('dataset-123');
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/datasets/dataset-123', {});
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/datasets/dataset-123/', {});
       expect(mockValidateDataset).toHaveBeenCalledWith(dataset);
       expect(result).toBe(dataset);
     });
@@ -301,7 +304,7 @@ describe('Datasets API', () => {
       await client.datasets.update('dataset-123', updateDatasetRequest);
 
       expect(mockValidateUpdateDatasetRequest).toHaveBeenCalledWith(updateDatasetRequest);
-      expect(mockHttpClient.patch).toHaveBeenCalledWith('/datasets/dataset-123', {
+      expect(mockHttpClient.patch).toHaveBeenCalledWith('/datasets/dataset-123/', {
         body: JSON.stringify(updateDatasetRequest),
       });
     });
@@ -313,7 +316,7 @@ describe('Datasets API', () => {
 
       await client.datasets.delete('dataset-123');
 
-      expect(mockHttpClient.delete).toHaveBeenCalledWith('/datasets/dataset-123', {});
+      expect(mockHttpClient.delete).toHaveBeenCalledWith('/datasets/dataset-123/', {});
     });
   });
 
@@ -325,7 +328,7 @@ describe('Datasets API', () => {
       const result = await client.datasets.upload('dataset-123', uploadDatasetRequest);
 
       expect(mockValidateUploadDatasetRequest).toHaveBeenCalledWith(uploadDatasetRequest);
-      expect(mockHttpClient.post).toHaveBeenCalledWith('/datasets/dataset-123/files/upload', {
+      expect(mockHttpClient.post).toHaveBeenCalledWith('/datasets/dataset-123/files/upload/', {
         body: expect.any(FormData),
       });
 
@@ -346,7 +349,7 @@ describe('Datasets API', () => {
       const result = await client.datasets.listFormats(listFormatsRequest);
 
       expect(mockValidateListFormatsRequest).toHaveBeenCalledWith(listFormatsRequest);
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/files/formats/datasets', {
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/files/formats/datasets/', {
         params: { offset: 0, limit: 100 },
       });
       expect(mockValidateListFormatsResults).toHaveBeenCalledWith(listFormatsResults);
@@ -533,6 +536,102 @@ describe('Datasets API', () => {
       await expect(client.datasets.list()).rejects.toThrow('Invalid list response');
 
       expect(mockValidateListDatasetsResults).toHaveBeenCalledWith({});
+    });
+  });
+
+  describe('download dataset', () => {
+    it('should download dataset in-memory as raw bytes', async () => {
+      const client = createClient('apiKey');
+      const sampleData = [{ text: 'sample review', true_labels: ['positive'] }];
+      const sampleJson = JSON.stringify(sampleData);
+
+      const fakeResponse = {
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: jest.fn().mockResolvedValue(sampleJson),
+      } as unknown as Response;
+
+      mockHttpClient.get.mockResolvedValue(fakeResponse);
+
+      const result = await client.datasets.download('dataset-123');
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/datasets/dataset-123/download/');
+      expect(result).toBeInstanceOf(Uint8Array);
+      expect(new TextDecoder().decode(result as Uint8Array)).toBe(sampleJson);
+    });
+
+    it('should download dataset with returnData: true and parse JSON', async () => {
+      const client = createClient('apiKey');
+      const sampleData = [{ text: 'sample review', true_labels: ['positive'] }];
+      const sampleJson = JSON.stringify(sampleData);
+
+      const fakeResponse = {
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: jest.fn().mockResolvedValue(sampleJson),
+      } as unknown as Response;
+
+      mockHttpClient.get.mockResolvedValue(fakeResponse);
+
+      const result = await client.datasets.download('dataset-123', { returnData: true });
+      expect(result).toEqual(sampleData);
+    });
+
+    it('should stream download dataset chunks', async () => {
+      const client = createClient('apiKey');
+      const sampleData = 'chunk1chunk2chunk3';
+
+      const fakeResponse = {
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'text/plain' }),
+        text: jest.fn().mockResolvedValue(sampleData),
+        arrayBuffer: jest.fn().mockResolvedValue(new TextEncoder().encode(sampleData).buffer),
+      } as unknown as Response;
+
+      mockHttpClient.get.mockResolvedValue(fakeResponse);
+
+      const chunks: Uint8Array[] = [];
+      for await (const chunk of client.datasets.streamDownload('dataset-123', { chunkSize: 6 })) {
+        chunks.push(chunk);
+      }
+
+      expect(chunks.length).toBe(3);
+      expect(new TextDecoder().decode(chunks[0])).toBe('chunk1');
+      expect(new TextDecoder().decode(chunks[1])).toBe('chunk2');
+      expect(new TextDecoder().decode(chunks[2])).toBe('chunk3');
+    });
+
+    it('should follow storage URL redirect pointer', async () => {
+      const client = createClient('apiKey');
+      const storageUrl = 'https://s3.amazonaws.com/bucket/dataset.json';
+      const fileContent = '[{"item": 1}]';
+
+      const redirectResponse = {
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: jest.fn().mockResolvedValue(JSON.stringify({ url: storageUrl })),
+      } as unknown as Response;
+
+      mockHttpClient.get.mockResolvedValue(redirectResponse);
+
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        arrayBuffer: jest.fn().mockResolvedValue(new TextEncoder().encode(fileContent).buffer),
+      } as unknown as Response);
+
+      try {
+        const result = await client.datasets.download('dataset-123', { returnData: true });
+        expect(global.fetch).toHaveBeenCalledWith(storageUrl, { redirect: 'follow' });
+        expect(result).toEqual([{ item: 1 }]);
+      } finally {
+        global.fetch = originalFetch;
+      }
     });
   });
 });
