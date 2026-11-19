@@ -1139,7 +1139,7 @@ describe(createClient.name, () => {
 
       expect(mockCreateHttpClient).toHaveBeenCalledWith(
         expect.objectContaining({
-          baseUrl: 'https://api.knowledgator.com',
+          baseUrl: 'https://api.platform.knowledgator.com',
           baseHeaders: expect.not.objectContaining({
             'KnowledgatorAPI-Key': expect.anything(),
           }),
@@ -1165,7 +1165,7 @@ describe(createClient.name, () => {
 
       expect(mockCreateHttpClient).toHaveBeenCalledWith(
         expect.objectContaining({
-          baseUrl: 'https://api.knowledgator.com',
+          baseUrl: 'https://api.platform.knowledgator.com',
           baseHeaders: expect.not.objectContaining({
             'KnowledgatorAPI-Key': expect.anything(),
           }),
@@ -1211,7 +1211,7 @@ describe(createClient.name, () => {
 
       expect(mockCreateHttpClient).toHaveBeenCalledWith(
         expect.objectContaining({
-          baseUrl: 'https://api.knowledgator.com',
+          baseUrl: 'https://api.platform.knowledgator.com',
           baseHeaders: expect.objectContaining({
             'KnowledgatorAPI-Key': 'my-secret-key',
           }),

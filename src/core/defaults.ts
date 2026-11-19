@@ -29,12 +29,12 @@ export const DEFAULT_ENDPOINTS: Required<EndpointConfig> = {
 } as const;
 
 export const DEFAULT_SERVERS: Required<ServerConfig> = {
-  comprehend: 'https://api.knowledgator.com',
-  extract: 'https://api.knowledgator.com',
-  instruct: 'https://api.knowledgator.com',
-  datasets: 'https://api.knowledgator.com',
-  finetuning: 'https://api.knowledgator.com',
-  inference: 'https://api.knowledgator.com',
+  comprehend: 'https://api.platform.knowledgator.com',
+  extract: 'https://api.platform.knowledgator.com',
+  instruct: 'https://api.platform.knowledgator.com',
+  datasets: 'https://api.platform.knowledgator.com',
+  finetuning: 'https://api.platform.knowledgator.com',
+  inference: 'https://api.platform.knowledgator.com',
 } as const;
 
 export const getDefaultHeaders = (apiKey?: string): Record<string, string> => {

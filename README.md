@@ -65,7 +65,7 @@ npm run build
 
 ### API Key Setup
 
-Before using the SDK, obtain a Knowledgator API key from [api.knowledgator.com](https://api.knowledgator.com/account/api-keys).
+Before using the SDK, obtain a Knowledgator API key from [api.platform.knowledgator.com](https://api.platform.knowledgator.com/account/api-keys).
 
 The SDK supports zero-config initialization via environment variables (`KG_API_KEY`, `KG_MCP_API_KEY`, or `KNOWLEDGATOR_API_KEY`), or direct API key / Bearer token strings.
 
