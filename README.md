@@ -1,9 +1,24 @@
-# Knowledgator TypeScript SDK
+<h1>Knowledgator TypeScript SDK</h1>
 
-[![version badge](https://img.shields.io/npm/v/@knowledgator/typescript-sdk)](https://www.npmjs.com/package/@knowledgator/typescript-sdk)
-![license badge](https://img.shields.io/github/license/Knowledgator/knowledgator-sdk.js)
+<div align="center">
 
-The Knowledgator TypeScript SDK provides access to the Knowledgator APIs for zero-shot classification and information extraction tasks. Designed for Node.js applications and compatible with modern browsers, it uses async/await for all operations and supports both standard API access and RapidAPI integration.
+<a href="https://platform.knowledgator.com/">
+  <img src="assets/header.png" alt="Knowledgator JavaScript SDK — turn text into structured knowledge" width="100%">
+</a>
+
+<p>
+  <a href="https://docs.knowledgator.com/docs/sdks/typescript/"><img src="https://img.shields.io/badge/Documentation-b5a642?logo=readthedocs&logoColor=white" alt="Documentation"></a>
+  <a href="https://platform.knowledgator.com/"><img src="https://img.shields.io/badge/Platform-b5a642?logo=googlechrome&logoColor=white" alt="Platform"></a>
+  <a href="https://www.npmjs.com/package/@knowledgator/typescript-sdk"><img src="https://img.shields.io/badge/npm-b5a642?logo=npm&logoColor=white" alt="npm"></a>
+  <a href="https://www.npmjs.com/package/@knowledgator/typescript-sdk"><img src="https://img.shields.io/npm/v/@knowledgator/typescript-sdk?color=4b6b3a&label=version" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/@knowledgator/typescript-sdk"><img src="https://img.shields.io/node/v/@knowledgator/typescript-sdk?color=4b6b3a" alt="Node.js versions"></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/types-included-4b6b3a?logo=typescript&logoColor=white" alt="TypeScript types included"></a>
+  <a href="https://github.com/Knowledgator/knowledgator-sdk.js/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-4b6b3a" alt="License: Apache-2.0"></a>
+</p>
+
+</div>
+
+The Knowledgator TypeScript SDK provides access to the Knowledgator APIs for zero-shot classification and information extraction tasks. Built for Node.js 18+, it ships with ESM and CommonJS builds and full TypeScript types, uses async/await for all operations, and supports both standard API access and RapidAPI integration.
 
 ### Key Advantages
 
@@ -28,7 +43,7 @@ The Knowledgator TypeScript SDK provides access to the Knowledgator APIs for zer
 
 ## Documentation
 
-Knowledgator API reference and guides are available [here](https://docs.knowledgator.com/). For detailed endpoint specifications, refer to the API documentation.
+Knowledgator API reference and guides are available [here](https://docs.knowledgator.com/docs/sdks/typescript/). For detailed endpoint specifications, refer to the API documentation.
 
 ## Quick Installation
 
@@ -67,7 +82,23 @@ npm run build
 
 Before using the SDK, obtain a Knowledgator API key from [platform.knowledgator.com](https://platform.knowledgator.com/account/api-keys).
 
-The SDK supports zero-config initialization via environment variables (`KG_API_KEY`, `KG_MCP_API_KEY`, or `KNOWLEDGATOR_API_KEY`), or direct API key / Bearer token strings.
+Set your API key as an environment variable:
+
+```bash
+$ export KG_API_KEY="your_api_key_here"
+```
+
+You can write it to zsh in the following way:
+
+```bash
+# Set Knowledgator API Key (using zsh for example)
+$ echo 'export KG_API_KEY=[your_key_here]' >> ~/.zshenv
+
+# Reload the environment (or open a new terminal)
+$ source ~/.zshenv
+```
+
+With the variable set, `createClient()` picks the key up automatically (it checks `KG_API_KEY`, then `KG_MCP_API_KEY`, then `KNOWLEDGATOR_API_KEY`). Alternatively, pass the key directly: `createClient('your-api-key')`.
 
 ### SDK Example Usage
 
@@ -125,6 +156,7 @@ console.log(result.outputs.topic); // Directly access parsed task output
 - [Raw Data Management](#raw-data-management)
 - [Fine-tuning](#fine-tuning)
 - [Open Models](#open-models)
+- [Model Types: LoRA Adapters vs. Open Models](#model-types-lora-adapters-vs-open-models)
 - [Configuration Options](#configuration-options)
 - [RapidAPI Integration](#rapidapi-integration)
 - [Available Resources and Operations](#available-resources-and-operations)
@@ -462,7 +494,7 @@ const client = createClient('your-api-key-here', {
   // API provider: 'knowledgator', 'rapidapi', or 'custom'
   provider: 'knowledgator',
 
-  // Request timeout in milliseconds
+  // Request timeout in milliseconds (default: 60000)
   timeout: 30000,
 
   // Enable debug logging
@@ -505,7 +537,8 @@ const client = createClient('your-rapidapi-key-here', {
   provider: 'rapidapi',
 });
 
-// Usage is the same as above
+// Usage is the same as above (comprehend, extract and instruct are available via RapidAPI;
+// other resources throw RapidApiNotSupportedError)
 const result = await client.comprehend.it({
   text: 'Text to classify',
   tasks: {
@@ -541,14 +574,26 @@ const result = await client.comprehend.it({
 - `update(datasetId, request)`: Update dataset metadata
 - `delete(datasetId)`: Delete a dataset
 - `upload(datasetId, request)`: Upload a file to an existing dataset
+- `download(datasetId, options)`: Download a dataset to a file (`filePath`) or into memory (`returnData`)
+- `streamDownload(datasetId, options)`: Stream a dataset as `Uint8Array` chunks (async generator)
 - `listFormats(request)`: List available dataset formats
+- `generatePlan({ prompt })`: Generate a dataset plan from a prompt
+- `generate(request)`: Generate a synthetic dataset
+
+### Raw Data (Datasets API)
+
+- `listData(request)`: List raw data entries
+- `createData(request)`: Create a raw data entry
+- `getData(dataId)`: Get raw data details by ID
+- `updateData(dataId, request)`: Update raw data metadata
+- `deleteData(dataId)`: Delete a raw data entry
+- `uploadData(dataId, request)`: Upload a file to an existing raw data entry
 
 ### Finetuning API
 
 - `createBaseModel(request)`: Create a new base model for training
 - `listModels(request)`: List available base models
 - `getModel(modelId)`: Get model details by ID
-- `listModelTypes()`: List available model types
 - `startTraining(request)`: Start a new training job
 - `listTrainings(request)`: List training jobs with optional filtering
 - `getTraining(trainingId)`: Get training job details by ID
@@ -556,6 +601,17 @@ const result = await client.comprehend.it({
 - `stopTraining(trainingId)`: Stop a running training job
 - `listEvents(trainingId, request)`: List events for a training job
 - `getMetrics(trainingId, request)`: Get training metrics for a specific metric type
+- `getEvaluations(trainingId)`: Get evaluation results for a training job
+
+### Models API
+
+- `create(request)`, `list(request)`, `get(modelId)`: Same as the base-model methods on the Finetuning API, exposed as `client.models`
+
+### Open Models
+
+- `client.model(modelId, method?)`: Create an Open Model client
+- `predict(body)`: Run inference (`POST /inference/{model_id}/`, or `/{method}/` if a default method was given)
+- `call(method, body)`: Call a specific sub-method (`POST /inference/{model_id}/{method}/`)
 
 ### Configuration Types
 
@@ -669,10 +725,17 @@ const client = createClient('your-api-key-here', {
 
 ## Authentication
 
-Authenticate via `apiKey` parameter:
+Authenticate by passing the API key to `createClient`, or omit it and set one of the `KG_API_KEY`, `KG_MCP_API_KEY` or `KNOWLEDGATOR_API_KEY` environment variables (checked in that order). For RapidAPI, pass your RapidAPI key together with `provider: 'rapidapi'`.
 
 ```typescript
+// Explicit key
 const client = createClient('your-api-key-here');
+
+// From environment variables
+const envClient = createClient();
+
+// Config only, key from environment
+const debugClient = createClient({ debug: true });
 ```
 
 ## Logging and Debugging
@@ -688,7 +751,7 @@ const client = createClient('your-api-key-here', {
 });
 
 // Or provide custom logger
-const client = createClient('your-api-key-here', {
+const loggedClient = createClient('your-api-key-here', {
   logger: {
     debug: (message, data) => console.log(`[DEBUG] ${message}`, data),
     info: (message, data) => console.log(`[INFO] ${message}`, data),
@@ -762,4 +825,4 @@ Feel free to contribute and open issues or PRs.
 
 ## License
 
-Licensed under the MIT License. See [LICENSE](LICENSE) for details.
+This project is licensed under the [Apache License 2.0](LICENSE).
