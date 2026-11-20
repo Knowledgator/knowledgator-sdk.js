@@ -57,7 +57,7 @@
     "test:unit": "jest --testPathPattern=src/",
     "test:e2e": "jest --testPathPattern=tests/e2e/",
     "test:coverage": "jest --coverage --testPathPattern=src/",
-    "prepare": "husky install",
+    "prepare": "husky",
     "prepublishOnly": "npm run build",
     "release": "release-it"
   },
